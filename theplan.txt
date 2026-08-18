@@ -2,8 +2,6 @@ Idea:
 "same-day heat, safety planner for construction project managers"
 
 Plan:
-10-Day Build Plan
-
 What we are building is a web application for a construction/HSE manager responsible for several sites.
 
 Every morning it:
