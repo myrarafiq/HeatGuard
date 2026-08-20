@@ -12,6 +12,12 @@ Same-day heat planner for Florida construction sites. This folder is the FortyGu
 
 US coverage only — Florida is valid. Env-params should be requested for the **same time/location as the heatmap**, using the heatmap mean temperature as the required `temperature` input.
 
+Live Day 1–2 result (2024-07-15 14:00, Miami metro): Doral 32.11°C, Brickell 31.26°C, Miami Beach 30.84°C — **1.27°C spread**. Provisional GO.
+
+Hackathon key: 2,000,000 credits. Heatmap ≈ 4,220 credits/call, env params ≈ 2,900. Do not fire 12 hours × 5 sites until Day 4–5.
+
+FortyGuard timestamps for Miami came back as `GMT-5` even in July (no DST). We still request Florida wall-clock hours in `America/New_York` and store `api_timestamp` from the response.
+
 ## Setup
 
 ```bash
