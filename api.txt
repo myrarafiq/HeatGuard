@@ -1,0 +1,4 @@
+https://docs-api.fortyguard.com/docs/authentication 
+
+API Key: 388370b6f3a7a106f4cb2b21be21aead 
+mr7316@nyu.edu
