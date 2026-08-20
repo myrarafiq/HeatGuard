@@ -108,7 +108,7 @@ class FortyGuardClient:
         raise TimeoutError(f"Activity {activity_id} did not complete in {max_wait_s}s. Last: {last}")
 
     def credits(self) -> dict[str, Any]:
-        return self._post("/system/fetch-api-key-usage", {})
+        return self._post("/system/fetch-api-key-usage", {"api_key": self.api_key})
 
     @staticmethod
     def _activity_id(body: dict[str, Any]) -> str:

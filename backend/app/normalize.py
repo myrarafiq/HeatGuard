@@ -130,6 +130,7 @@ def merge_hour_record(
         "relative_humidity_percent": env_vals.get("relative_humidity_percent"),
         "heat_index_celsius": env_vals.get("heat_index_celsius"),
         "solar_ghi": env_vals.get("solar_ghi"),
+        "api_timestamp": env_vals.get("timestamp"),
         "heatmap_activity_id": heatmap_activity_id,
         "env_activity_id": env_activity_id,
         "missing_fields": [
