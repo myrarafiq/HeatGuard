@@ -31,13 +31,14 @@ Every morning, HeatGuard:
 
 ## Challenge tracks
 
-We're competing across:
+**Primary track** (what we're judged on)
 
-| Track | How HeatGuard fits |
-| --- | --- |
-| **Industrial & Enterprise** | Same-day heat operations for multi-site construction / HSE managers |
-| **Agentic AI** | Structured risk outputs → supervisor briefing & Q&A that explains (not recalculates) decisions |
-| **Data Analysis & Correlation** | Site-vs-site thermal differences that a single city forecast cannot show |
+- **Industrial & Enterprise** — same-day heat operations for multi-site construction / HSE managers
+
+**Secondary tracks**
+
+- **Agentic AI** — structured risk outputs → supervisor briefing & Q&A that explains (not recalculates) decisions  
+- **Data Analysis & Correlation** — site-vs-site thermal differences that a single city forecast cannot show
 
 ## Why FortyGuard
 
@@ -66,13 +67,7 @@ Backend setup and Day 1–2 prove scripts live in [`backend/README.md`](backend/
 
 ## Team
 
-Built for FortyGuard Hackathon '26 by:
-
-| Name | LinkedIn |
-| --- | --- |
-| **Myra Rafiq** | [linkedin.com/in/myrarafiq](https://www.linkedin.com/in/myrarafiq/) |
-| **Aleezah Ahmad** | [linkedin.com/in/aleezah-ahmad-483b8b232](https://www.linkedin.com/in/aleezah-ahmad-483b8b232/) |
-| **Kayan Rafiq** | [linkedin.com/in/kayanrafiq](https://www.linkedin.com/in/kayanrafiq/) |
+Built for FortyGuard Hackathon '26 by [Myra Rafiq](https://www.linkedin.com/in/myrarafiq/), [Aleezah Ahmad](https://www.linkedin.com/in/aleezah-ahmad-483b8b232/), and [Kayan Rafiq](https://www.linkedin.com/in/kayanrafiq/).
 
 ## What success looks like
 
