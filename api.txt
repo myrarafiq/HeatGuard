@@ -1,4 +1,7 @@
 https://docs-api.fortyguard.com/docs/authentication 
 
 API Key: 388370b6f3a7a106f4cb2b21be21aead 
-mr7316@nyu.edu
+
+https://dashboard.fortyguard.com/ login details:
+email id: mr7316@nyu.edu
+password: c7y3vrz7LekQz4v
