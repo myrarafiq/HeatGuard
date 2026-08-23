@@ -31,14 +31,14 @@ Every morning, HeatGuard:
 
 ## Challenge tracks
 
-**Primary track** (what we're judged on)
+**Primary track**
 
-- **Industrial & Enterprise** — same-day heat operations for multi-site construction / HSE managers
+- **Industrial & Enterprise (Track 03)** — same-day heat operations for multi-site construction / HSE managers
 
 **Secondary tracks**
 
-- **Agentic AI** — structured risk outputs → supervisor briefing & Q&A that explains (not recalculates) decisions  
-- **Data Analysis & Correlation** — site-vs-site thermal differences that a single city forecast cannot show
+- **Agentic AI (Track 06)** — structured risk outputs → supervisor briefing & Q&A that explains (not recalculates) decisions  
+- **Data Analysis & Correlation (Track 07)** — site-vs-site thermal differences that a single city forecast cannot show
 
 ## Why FortyGuard
 
