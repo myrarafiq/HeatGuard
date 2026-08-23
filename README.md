@@ -10,24 +10,9 @@
 
 ---
 
-## Quick start (local demo)
+## Live demo
 
-```bash
-chmod +x run.sh
-./run.sh
-```
-
-Open **http://127.0.0.1:8000** — dashboard + API on one server. Demo data loads automatically if the database is empty.
-
-Manual setup:
-
-```bash
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r backend/requirements.txt
-cp .env.example .env   # add FortyGuard API key
-python -m backend.scripts.load_fixtures
-uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --app-dir .
-```
+Dashboard and API are deployed on Vercel (see the project’s Vercel URL after deploy).
 
 ---
 
@@ -91,14 +76,14 @@ frontend/
   dashboard/               # Manager dashboard (index.html + assets)
   dashboard/template.txt   # Original wireframe
   README.md                # Dashboard design notes
-run.sh                     # One-command local demo
+vercel.json                # Vercel deploy config
 theplan.txt                # Build plan
 .env.example               # API keys (copy to .env)
 ```
 
 More detail: [`backend/README.md`](backend/README.md) · Safety sources: [`backend/safety/METHODOLOGY.md`](backend/safety/METHODOLOGY.md)
 
-## API (for judges / integration)
+## API
 
 | Method | Path | Purpose |
 | --- | --- | --- |
@@ -109,16 +94,6 @@ More detail: [`backend/README.md`](backend/README.md) · Safety sources: [`backe
 | `POST` | `/planner/ask` | Explain calculated results (`{"question":"...","workload":"heavy"}`) |
 | `GET` | `/sites` | Site polygons + metadata |
 | `POST` | `/demo/load-fixtures` | Reload backup demo data |
-
-## Hackathon submission checklist
-
-- [ ] **Form:** [Official submission form](https://forms.gle/jLgBzVTG1NhJ3gNe6) by **30 Aug 2026, 11:59 PM GST**
-- [ ] **Repo link:** this GitHub repo (add `hackathon@fortyguard.com` if private)
-- [ ] **Live demo URL:** deploy with [`render.yaml`](render.yaml) (Render) or run `./run.sh` on any host — must work in incognito, no login
-- [ ] **Demo video:** ≤3 min, voiceover, show dashboard + one AI question
-- [ ] **API key:** your FortyGuard key in the form (judges verify real API use)
-- [ ] **AI disclosure:** optional OpenAI for brief narration; deterministic Q&A works without it
-- [ ] Refresh demo in a fresh browser after deploy (free tiers can sleep)
 
 ## Team
 
