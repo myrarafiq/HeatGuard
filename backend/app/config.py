@@ -18,9 +18,8 @@ def _api_key() -> str:
         for line in api_txt.read_text().splitlines():
             if line.lower().startswith("api key:"):
                 return line.split(":", 1)[1].strip()
-    raise RuntimeError(
-        "Missing FORTYGUARD_API_KEY. Copy .env.example to .env or keep it in api.txt."
-    )
+    # Dashboard demo works from fixtures without a live key.
+    return ""
 
 
 FORTYGUARD_API_KEY = _api_key()
@@ -33,7 +32,12 @@ FORTYGUARD_ENV_PARAMS = [
     ).split(",")
     if p.strip()
 ]
-DATABASE_PATH = Path(os.getenv("DATABASE_PATH", str(ROOT / "backend" / "data" / "heat_planner.db")))
+_default_db = (
+    "/tmp/heat_planner.db"
+    if (os.getenv("VERCEL") or os.getenv("VERCEL_ENV"))
+    else str(ROOT / "backend" / "data" / "heat_planner.db")
+)
+DATABASE_PATH = Path(os.getenv("DATABASE_PATH", _default_db))
 if not DATABASE_PATH.is_absolute():
     DATABASE_PATH = ROOT / DATABASE_PATH
 SITES_PATH = ROOT / "backend" / "data" / "sites.json"

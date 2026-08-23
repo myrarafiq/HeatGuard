@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    { "source": "/health", "destination": "/api" },
+    { "source": "/sites", "destination": "/api" },
+    { "source": "/sites/(.*)", "destination": "/api" },
+    { "source": "/hours", "destination": "/api" },
+    { "source": "/workloads", "destination": "/api" },
+    { "source": "/planner", "destination": "/api" },
+    { "source": "/planner/(.*)", "destination": "/api" },
+    { "source": "/demo/(.*)", "destination": "/api" }
+  ]
+}

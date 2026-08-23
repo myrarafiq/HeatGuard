@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HeatGuard — Heat Safety Planner</title>
+    <link rel="stylesheet" href="/assets/styles.css" />
+  </head>
+  <body>
+    <header>
+      <h1>HEAT SAFETY PLANNER</h1>
+      <p>Miami Construction Operations · FortyGuard Hackathon '26</p>
+    </header>
+    <div id="status" class="status-bar">Starting…</div>
+
+    <div class="layout">
+      <section>
+        <div class="panel">
+          <h2>Site map</h2>
+          <div id="site-grid" class="site-grid"></div>
+        </div>
+
+        <div class="panel" style="margin-top: 1rem">
+          <h2>Today's recommendations</h2>
+          <ul id="actions-list" class="actions-list"></ul>
+        </div>
+
+        <div class="panel" style="margin-top: 1rem">
+          <h2>AI supervisor brief</h2>
+          <p id="brief-text" class="brief-text">Loading brief…</p>
+          <div class="ask-row">
+            <input id="ask-input" type="text" placeholder="e.g. Which site is best for heavy work at 10 AM?" />
+            <button id="ask-btn" type="button">Ask</button>
+          </div>
+          <div id="ask-answer" class="ask-answer" hidden></div>
+        </div>
+      </section>
+
+      <section>
+        <div class="panel">
+          <h2 id="site-title">SELECTED SITE</h2>
+          <p id="site-surface" class="site-surface"></p>
+
+          <div style="font-size: 0.75rem; color: var(--muted); text-transform: uppercase">Current hour</div>
+          <div id="temp-hero" class="temp-hero">— <span>°C</span></div>
+
+          <div class="stats-row">
+            <div class="stat"><label>Min</label><value id="stat-min">—</value></div>
+            <div class="stat"><label>Mean</label><value id="stat-mean">—</value></div>
+            <div class="stat"><label>Max</label><value id="stat-max">—</value></div>
+          </div>
+
+          <h2>12-hour outlook</h2>
+          <div id="timeline" class="timeline"></div>
+
+          <h2 style="margin-top: 1rem">Work intensity</h2>
+          <div class="workload-row">
+            <button type="button" class="workload-btn" data-workload="light">Light</button>
+            <button type="button" class="workload-btn" data-workload="moderate">Moderate</button>
+            <button type="button" class="workload-btn active" data-workload="heavy">Heavy</button>
+          </div>
+
+          <h2 style="margin-top: 1rem">Risk</h2>
+          <div id="risk-detail" class="risk-box">Loading…</div>
+
+          <h2 style="margin-top: 1rem">Recommended action</h2>
+          <div id="action-detail" class="action-box">Loading…</div>
+
+          <div style="margin-top: 1rem">
+            <button id="reload-btn" type="button" class="reload-btn">Reload data</button>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <script src="/assets/app.js"></script>
+  </body>
+</html>

@@ -12,7 +12,7 @@
 
 ## Live demo
 
-Dashboard and API are deployed on Vercel (see the project’s Vercel URL after deploy).
+**https://forty-guard-temperature-ai.vercel.app/**
 
 ---
 
@@ -76,7 +76,10 @@ frontend/
   dashboard/               # Manager dashboard (index.html + assets)
   dashboard/template.txt   # Original wireframe
   README.md                # Dashboard design notes
-vercel.json                # Vercel deploy config
+public/                    # Static dashboard for Vercel
+api/                       # Vercel Python entrypoint
+vercel.json                # Vercel routing
+requirements.txt           # Python deps for Vercel
 theplan.txt                # Build plan
 .env.example               # API keys (copy to .env)
 ```

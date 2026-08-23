@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pathlib import Path
+import os
 from typing import Literal
 
 from fastapi import FastAPI, HTTPException, Query
@@ -19,6 +19,7 @@ from .sites import get_site, load_sites
 
 WorkloadParam = Literal["light", "moderate", "heavy", "very_heavy"]
 DASHBOARD_DIR = ROOT / "frontend" / "dashboard"
+ON_VERCEL = bool(os.getenv("VERCEL") or os.getenv("VERCEL_ENV"))
 
 app = FastAPI(
     title="HeatGuard API",
@@ -83,7 +84,6 @@ def planner(workload: WorkloadParam = Query(default="heavy")) -> dict:
     with connect() as conn:
         hour_rows = list_hours(conn)
     if not hour_rows:
-        # Auto-load demo fixtures so frontend always has something to render.
         load_fixtures_into_db()
         with connect() as conn:
             hour_rows = list_hours(conn)
@@ -128,4 +128,5 @@ def dashboard() -> FileResponse:
     return FileResponse(DASHBOARD_DIR / "index.html")
 
 
-app.mount("/assets", StaticFiles(directory=str(DASHBOARD_DIR)), name="dashboard-assets")
+if DASHBOARD_DIR.is_dir() and not ON_VERCEL:
+    app.mount("/assets", StaticFiles(directory=str(DASHBOARD_DIR)), name="dashboard-assets")
