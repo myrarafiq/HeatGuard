@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: heatguard
+    runtime: python
+    plan: free
+    buildCommand: pip install -r backend/requirements.txt && python -m backend.scripts.load_fixtures
+    startCommand: uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT --app-dir .
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12"
+      - key: FORTYGUARD_API_KEY
+        sync: false

@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Literal
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from .config import ROOT
 from .db import connect, list_hours
 from .fixtures import load_fixtures_into_db
 from .safety.ai import maybe_llm_explain, render_brief_template
@@ -14,14 +18,15 @@ from .safety.thresholds import WORKLOAD_DEFINITIONS
 from .sites import get_site, load_sites
 
 WorkloadParam = Literal["light", "moderate", "heavy", "very_heavy"]
+DASHBOARD_DIR = ROOT / "frontend" / "dashboard"
 
 app = FastAPI(
     title="HeatGuard API",
     description=(
-        "Person 1+2 backend for the FortyGuard Hackathon: FortyGuard forecasts → "
-        "OSHA/NIOSH screening risk → recommendations → AI explanation. No frontend."
+        "FortyGuard Hackathon submission: hyperlocal forecasts → OSHA/NIOSH screening risk "
+        "→ recommendations → manager dashboard."
     ),
-    version="0.2.0",
+    version="1.0.0",
 )
 app.add_middleware(
     CORSMiddleware,
@@ -87,7 +92,7 @@ def planner(workload: WorkloadParam = Query(default="heavy")) -> dict:
 
 @app.get("/planner/snapshot")
 def planner_snapshot(workload: WorkloadParam = Query(default="heavy")) -> dict:
-    """Backward-compatible alias used earlier by Person 1."""
+    """Alias for /planner (used by dashboard docs)."""
     return planner(workload)
 
 
@@ -116,3 +121,11 @@ def planner_ask(body: AskBody) -> dict:
     data = planner(body.workload)
     result = maybe_llm_explain(body.question, data)
     return {"question": body.question, "workload": body.workload, **result}
+
+
+@app.get("/")
+def dashboard() -> FileResponse:
+    return FileResponse(DASHBOARD_DIR / "index.html")
+
+
+app.mount("/assets", StaticFiles(directory=str(DASHBOARD_DIR)), name="dashboard-assets")
