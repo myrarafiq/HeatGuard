@@ -64,9 +64,10 @@ LIVE_ANCHORS: dict[str, dict[str, float]] = {
 
 
 def _diurnal_offset(hour: int) -> float:
-    """°C offset vs 14:00 peak — cooler morning/evening."""
-    # cosine peak near 14–15
-    return 3.2 * math.cos((hour - 14) / 12 * math.pi) - 3.2
+    """°C offset vs 14:00 peak — cooler morning/evening for demo storytelling."""
+    # Stronger morning cooling so heavy work can be green early, red by afternoon,
+    # while 14:00 stays pinned to live FortyGuard anchors (offset ≈ 0).
+    return 5.0 * math.cos((hour - 14) / 12 * math.pi) - 5.0
 
 
 def build_demo_day(
@@ -85,7 +86,7 @@ def build_demo_day(
             off = _diurnal_offset(when.hour)
             solar_scale = max(0.05, math.cos((when.hour - 13) / 10 * math.pi))
             temp = round(anchor["temp_c_mean"] + off, 2)
-            tw = round(anchor["wet_bulb_temperature_celsius"] + off * 0.45, 2)
+            tw = round(anchor["wet_bulb_temperature_celsius"] + off * 0.55, 2)
             record = {
                 "site_id": site_id,
                 "site_name": site.name if site else site_id,

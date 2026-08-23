@@ -59,11 +59,17 @@ City weather is too coarse for site-level safety decisions. FortyGuard's Tempera
 ## Repo layout
 
 ```
-backend/     # FortyGuard client, site polygons, hourly data pipeline, API
-theplan.txt  # Team build plan
+backend/                 # Person 1 + Person 2 (API, FortyGuard, risk, recommendations, AI)
+  app/safety/            # Risk engine + recommendation + AI explainer
+  safety/METHODOLOGY.md  # OSHA/NIOSH sources — thresholds not invented
+  data/fixtures/         # Demo backup day if live API fails
+theplan.txt              # Team build plan
 ```
 
-Backend setup and Day 1–2 prove scripts live in [`backend/README.md`](backend/README.md).
+Backend + safety API docs: [`backend/README.md`](backend/README.md).  
+Safety sources: [`backend/safety/METHODOLOGY.md`](backend/safety/METHODOLOGY.md).
+
+**Person 3 (frontend)** plugs into `GET /planner?workload=heavy` — map, timeline, actions, and brief are already computed.
 
 ## Team
 

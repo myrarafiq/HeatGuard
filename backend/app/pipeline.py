@@ -24,15 +24,48 @@ def fetch_site_hour(
     date_time = single_hour(when)
     hour_local = when.isoformat()
 
-    heatmap_id = client.submit_heatmap(site.polygon_aoi, date_time)
-    heatmap = client.wait_for_result(heatmap_id)
-    stats = extract_heatmap_stats(heatmap)
-    temperature = stats.get("temp_c_mean")
-    if temperature is None:
-        temperature = 32.0
+    try:
+        heatmap_id = client.submit_heatmap(site.polygon_aoi, date_time)
+        heatmap = client.wait_for_result(heatmap_id)
+        stats = extract_heatmap_stats(heatmap)
+        temperature = stats.get("temp_c_mean")
+        if temperature is None:
+            temperature = 32.0
 
-    env_id = client.submit_env_params(site.lat, site.lon, temperature, date_time)
-    env = client.wait_for_result(env_id)
+        env_id = client.submit_env_params(site.lat, site.lon, temperature, date_time)
+        env = client.wait_for_result(env_id)
+    except Exception as exc:  # noqa: BLE001 — persist a failed hour marker for the planner
+        record = {
+            "site_id": site.id,
+            "site_name": site.name,
+            "city": site.city,
+            "lat": site.lat,
+            "lon": site.lon,
+            "hour_local": hour_local,
+            "temp_c_min": None,
+            "temp_c_mean": None,
+            "temp_c_max": None,
+            "temp_c_stdev": None,
+            "tile_count": 0,
+            "tile_temperatures_c": [],
+            "apparent_temperature_celsius": None,
+            "wet_bulb_temperature_celsius": None,
+            "relative_humidity_percent": None,
+            "heat_index_celsius": None,
+            "solar_ghi": None,
+            "heatmap_activity_id": None,
+            "env_activity_id": None,
+            "missing_fields": [
+                "temp_c_mean",
+                "wet_bulb_temperature_celsius",
+                "relative_humidity_percent",
+            ],
+            "error": str(exc),
+        }
+        if persist:
+            with connect() as conn:
+                upsert_hour(conn, record)
+        return record
 
     if save_raw:
         _write_raw(site.id, hour_local, "heatmap", heatmap)

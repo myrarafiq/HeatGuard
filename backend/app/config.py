@@ -34,5 +34,7 @@ FORTYGUARD_ENV_PARAMS = [
     if p.strip()
 ]
 DATABASE_PATH = Path(os.getenv("DATABASE_PATH", str(ROOT / "backend" / "data" / "heat_planner.db")))
+if not DATABASE_PATH.is_absolute():
+    DATABASE_PATH = ROOT / DATABASE_PATH
 SITES_PATH = ROOT / "backend" / "data" / "sites.json"
 RAW_DIR = ROOT / "backend" / "data" / "raw"
