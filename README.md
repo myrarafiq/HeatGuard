@@ -100,7 +100,7 @@ More detail: [`backend/README.md`](backend/README.md) · Safety sources: [`backe
 
 ## Team
 
-Built for FortyGuard Hackathon '26 by [Myra Rafiq](https://www.linkedin.com/in/myrarafiq/), [Aleezah Ahmad](https://www.linkedin.com/in/aleezah-ahmad-483b8b232/), and [Kayan Rafiq](https://www.linkedin.com/in/kayanrafiq/).
+Built for FortyGuard Hackathon '26 by [Myra Rafiq](https://www.linkedin.com/in/myrarafiq/), [Aleezah Ahmad](https://www.linkedin.com/in/aleezah-ahmad-483b8b232/), and [Kayan Rafiq](https://www.linkedin.com/in/kayanrafiq/) :)
 
 FortyGuard tells us what the heat will be.  
 HeatGuard turns that intelligence into **today's operating plan**.
@@ -108,3 +108,4 @@ HeatGuard turns that intelligence into **today's operating plan**.
 ---
 
 *Submission for [FortyGuard Hackathon '26](https://www.fortyguard.com/hackathon26) · Powered by the FortyGuard Temperature API®*
+ 
