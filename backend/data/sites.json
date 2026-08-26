@@ -1,7 +1,8 @@
 {
   "timezone": "America/New_York",
-  "notes": "Five Miami-metro construction-scale polygons. Same metro, different surfaces — used to prove FortyGuard can change a work decision.",
-  "sites": [
+    "notes": "Five Miami-metro construction-scale polygons. half_deg 0.0025 is ~555 m on a side (center ±0.0025°). At 60 m heatmap granularity that is roughly 9×9 tiles — enough for a real min/mean/max/hotspot distribution, not three noisy cells. Same metro, different surfaces — used to prove FortyGuard can change a work decision.",
+    "heatmap_granularity_m": 60,
+    "sites": [
     {
       "id": "brickell",
       "name": "Brickell Tower Site",
@@ -9,7 +10,7 @@
       "surface": "dense downtown concrete / urban canyon",
       "lat": 25.7617,
       "lon": -80.1918,
-      "half_deg": 0.0014
+      "half_deg": 0.0025
     },
     {
       "id": "miami_beach",
@@ -18,7 +19,7 @@
       "surface": "coastal, higher wind / lower UHI expected",
       "lat": 25.7907,
       "lon": -80.1300,
-      "half_deg": 0.0014
+      "half_deg": 0.0025
     },
     {
       "id": "doral",
@@ -27,7 +28,7 @@
       "surface": "inland industrial asphalt / warehouses",
       "lat": 25.8195,
       "lon": -80.3553,
-      "half_deg": 0.0014
+      "half_deg": 0.0025
     },
     {
       "id": "coconut_grove",
@@ -36,7 +37,7 @@
       "surface": "tree canopy / residential streets",
       "lat": 25.7280,
       "lon": -80.2440,
-      "half_deg": 0.0014
+      "half_deg": 0.0025
     },
     {
       "id": "little_haiti",
@@ -45,7 +46,7 @@
       "surface": "inland urban, less canopy than Grove",
       "lat": 25.8370,
       "lon": -80.1910,
-      "half_deg": 0.0014
+      "half_deg": 0.0025
     }
   ]
 }

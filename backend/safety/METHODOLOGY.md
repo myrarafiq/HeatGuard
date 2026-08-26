@@ -109,6 +109,40 @@ Query/API: `acclimatized=true` switches to TLV-as-red-line.
 
 A site that is green at 7 AM and red at 2 PM is **now green, peak red**.
 
+## Conservative site temperature (mean vs hotspot)
+
+Every hour persists:
+
+| Field | Meaning |
+| --- | --- |
+| `temp_c_mean` | Site average (tiles / stats) |
+| `temp_c_max` / `temp_c_p90` | Within-site hotspot for screening |
+| `tile_spread_c` | `max − min` inside the polygon |
+
+OSHA cares about where people stand (roof, asphalt, unshaded slab). A 1.3°C **between-site** spread can flip a workload across a published limit; a 2–4°C **within-site** hotspot is the stronger FortyGuard story. Screening still uses the published OSHA table — hotspot is a stricter **input**, not a new cutoff.
+
+## FortyGuard layer: TCM for hourly risk
+
+Hourly OSHA/NIOSH screening uses **`analytic_type: "tcm"`** (snapshot) only. Wrong layer → confident wrong answer. Snapshot is the right layer for “what is it at 10 AM.”
+
+Optional **duration** metrics are stored next to each hour and **never** enter `screening_wbgt_c`:
+
+| Field | Meaning |
+| --- | --- |
+| `exceedance_hours_mean` / `_max` | Hours in the window above 30°C **air temperature** (or the configured `DURATION_THRESHOLD_C`) |
+| `persistence_hours_max` | Longest continuous run above that threshold |
+| `duration_used_in_risk` | Always `false` |
+
+That is industrial (“how long does this site stay dangerous”). 30°C here is FortyGuard air-temperature duration, **not** the OSHA heavy Action Limit (23°C WBGT).
+
+## City-forecast contrast (display-only)
+
+One Open-Meteo Miami 2 m reading is stored beside the five site means for the same hour: `city_temp_c` vs `site_temp_c_mean` (`site_minus_city_c`). Planner JSON includes `city_contrast`. **Not** used as Ta in the WBGT formula.
+
+## Polygon size vs heatmap granularity
+
+Demo sites use `half_deg: 0.0025` (~555 m on a side) and **60 m** heatmap tiles so min/mean/max is a real distribution, not three noisy cells.
+
 ## Work/rest cycles (ACGIH allocation → minutes)
 
 Green / amber / red is OSHA Table 2. Work/rest is a **separate** published table: ACGIH Screening Criteria for Heat Stress Exposure (WBGT °C).

@@ -5,7 +5,7 @@ from typing import Any
 
 import httpx
 
-from .config import FORTYGUARD_API_KEY, FORTYGUARD_BASE_URL, FORTYGUARD_ENV_PARAMS
+from .config import FORTYGUARD_API_KEY, FORTYGUARD_BASE_URL, FORTYGUARD_ENV_PARAMS, HEATMAP_GRANULARITY_M
 
 
 class FortyGuardError(RuntimeError):
@@ -27,10 +27,23 @@ class FortyGuardClient:
     def __exit__(self, *args: object) -> None:
         self.close()
 
-    def _post(self, path: str, payload: dict[str, Any]) -> dict[str, Any]:
+    def _post(self, path: str, payload: dict[str, Any], *, retries: int = 3) -> dict[str, Any]:
         url = f"{self.base_url}{path}"
-        response = self._http.post(url, json=payload, headers={"Content-Type": "application/json"})
-        return self._decode(response, url)
+        last_error: Exception | None = None
+        for attempt in range(retries):
+            try:
+                response = self._http.post(url, json=payload, headers={"Content-Type": "application/json"})
+                if response.status_code == 429:
+                    time.sleep(2 ** attempt)
+                    continue
+                return self._decode(response, url)
+            except FortyGuardError as exc:
+                last_error = exc
+                if "429" in str(exc) or "500" in str(exc):
+                    time.sleep(2 ** attempt)
+                    continue
+                raise
+        raise last_error or FortyGuardError(f"{url} failed after {retries} retries")
 
     def _get(self, path: str) -> httpx.Response:
         return self._http.get(f"{self.base_url}{path}")
@@ -48,18 +61,21 @@ class FortyGuardClient:
         self,
         polygon_aoi: dict[str, Any],
         date_time: dict[str, Any],
-        granularity: int = 100,
+        granularity: int | None = None,
         analytic_type: str = "tcm",
+        threshold: float | None = None,
+        direction: str | None = None,
     ) -> str:
-        body = self._post(
-            "/heatmap",
-            {
-                "polygon_aoi": polygon_aoi,
-                "date_time": date_time,
-                "granularity": granularity,
-                "analytic_type": analytic_type,
-            },
-        )
+        payload: dict[str, Any] = {
+            "polygon_aoi": polygon_aoi,
+            "date_time": date_time,
+            "granularity": granularity if granularity is not None else HEATMAP_GRANULARITY_M,
+            "analytic_type": analytic_type,
+        }
+        if analytic_type in {"exceedance", "persistence"}:
+            payload["threshold"] = 30.0 if threshold is None else threshold
+            payload["direction"] = direction or "above"
+        body = self._post("/heatmap", payload)
         return self._activity_id(body)
 
     def submit_env_params(
@@ -100,6 +116,7 @@ class FortyGuardClient:
         while time.time() < deadline:
             last = self.get_status(activity_id)
             status = str(self._status_value(last)).lower()
+            # Documented quirk: GET /status/{id} may 404 immediately after submit.
             if status in {"completed", "succeeded", "success"}:
                 return last
             if status in {"failed", "error"}:
@@ -108,7 +125,47 @@ class FortyGuardClient:
         raise TimeoutError(f"Activity {activity_id} did not complete in {max_wait_s}s. Last: {last}")
 
     def credits(self) -> dict[str, Any]:
-        return self._post("/system/fetch-api-key-usage", {"api_key": self.api_key})
+        url = f"{self.base_url}/system/fetch-api-key-usage"
+        response = self._http.post(
+            url,
+            json={"api_key": self.api_key},
+            headers={"Content-Type": "application/json"},
+            timeout=8.0,
+        )
+        return self._decode(response, url)
+
+    def credits_remaining(self) -> dict[str, Any]:
+        """Best-effort remaining-credit read. Never raises — /health must stay up."""
+        if not self.api_key:
+            return {"credits_remaining": None, "credits_status": "no_api_key"}
+        try:
+            body = self.credits()
+        except Exception as exc:  # noqa: BLE001
+            return {"credits_remaining": None, "credits_status": "error", "credits_error": str(exc)}
+        data = body.get("data") if isinstance(body.get("data"), dict) else body
+        remaining = None
+        for key in (
+            "credits_remaining",
+            "remaining_credits",
+            "remaining",
+            "credits",
+            "balance",
+        ):
+            if isinstance(data, dict) and data.get(key) is not None:
+                remaining = data.get(key)
+                break
+            if isinstance(body, dict) and body.get(key) is not None:
+                remaining = body.get(key)
+                break
+        try:
+            remaining_n = float(remaining) if remaining is not None else None
+        except (TypeError, ValueError):
+            remaining_n = None
+        return {
+            "credits_remaining": remaining_n,
+            "credits_status": "ok" if remaining_n is not None else "unknown_shape",
+            "credits_raw_keys": sorted((data or {}).keys()) if isinstance(data, dict) else [],
+        }
 
     @staticmethod
     def _activity_id(body: dict[str, Any]) -> str:

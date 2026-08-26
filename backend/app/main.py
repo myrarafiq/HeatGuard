@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 from .config import ROOT
 from .db import connect, list_hours, summarize_data_mode
 from .fixtures import load_fixtures_into_db
+from .fortyguard_client import FortyGuardClient
 from .safety.ai import maybe_llm_explain, render_brief_template
 from .safety.planner import build_planner
 from .safety.thresholds import (
@@ -56,7 +57,21 @@ class AskBody(BaseModel):
 def health() -> dict:
     with connect() as conn:
         hour_rows = list_hours(conn)
-    return {"status": "ok", "service": "heatguard", **summarize_data_mode(hour_rows)}
+    summary = summarize_data_mode(hour_rows)
+    credits = {"credits_remaining": None, "credits_status": "skipped"}
+    try:
+        with FortyGuardClient() as client:
+            credits = client.credits_remaining()
+    except Exception as exc:  # noqa: BLE001
+        credits = {"credits_remaining": None, "credits_status": "error", "credits_error": str(exc)}
+    return {
+        "status": "ok",
+        "service": "heatguard",
+        "data_mode": summary.get("mode"),
+        "last_successful_pull": summary.get("last_successful_pull"),
+        **summary,
+        **credits,
+    }
 
 
 @app.get("/sites")

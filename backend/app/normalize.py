@@ -71,6 +71,24 @@ def extract_tile_temperatures(result: dict[str, Any]) -> list[float]:
     return temps
 
 
+def extract_duration_hours(result: dict[str, Any] | None) -> dict[str, float | None]:
+    """Exceedance/persistence heatmaps return hours, not °C. Do not feed these into OSHA risk."""
+    if not result:
+        return {"hours_mean": None, "hours_min": None, "hours_max": None}
+    stats = extract_heatmap_stats(result)
+    tiles = extract_tile_temperatures(result)
+    mean = stats.get("temp_c_mean")
+    minimum = stats.get("temp_c_min")
+    maximum = stats.get("temp_c_max")
+    if mean is None and tiles:
+        mean = round(sum(tiles) / len(tiles), 3)
+    if minimum is None and tiles:
+        minimum = min(tiles)
+    if maximum is None and tiles:
+        maximum = max(tiles)
+    return {"hours_mean": mean, "hours_min": minimum, "hours_max": maximum}
+
+
 def heatmap_mean_c(result: dict[str, Any] | None) -> float | None:
     """Site air temperature from heatmap stats or tiles. Never a hardcoded fallback."""
     if not result:
@@ -223,6 +241,13 @@ def merge_hour_record(
     if mean is None and tiles:
         mean = round(sum(tiles) / len(tiles), 3)
     p90 = tile_percentile(tiles, 90) if tiles else None
+    tmin = stats.get("temp_c_min") if stats.get("temp_c_min") is not None else (min(tiles) if tiles else None)
+    tmax = stats.get("temp_c_max") if stats.get("temp_c_max") is not None else (max(tiles) if tiles else None)
+    spread = None
+    if tmin is not None and tmax is not None:
+        spread = round(float(tmax) - float(tmin), 3)
+    elif tiles and len(tiles) >= 2:
+        spread = round(max(tiles) - min(tiles), 3)
     missing = [
         name
         for name, value in (
@@ -237,11 +262,12 @@ def merge_hour_record(
     return {
         "site_id": site_id,
         "hour_local": hour_local,
-        "temp_c_min": stats.get("temp_c_min") if stats.get("temp_c_min") is not None else (min(tiles) if tiles else None),
-        "temp_c_max": stats.get("temp_c_max") if stats.get("temp_c_max") is not None else (max(tiles) if tiles else None),
+        "temp_c_min": tmin,
+        "temp_c_max": tmax,
         "temp_c_mean": mean,
         "temp_c_p90": p90,
         "temp_c_stdev": stats.get("temp_c_stdev"),
+        "tile_spread_c": spread,
         "tile_count": len(tiles),
         "tile_temperatures_c": tiles,
         "apparent_temperature_celsius": env_vals.get("apparent_temperature_celsius"),

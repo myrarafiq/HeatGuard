@@ -78,6 +78,7 @@ function renderSiteGrid() {
       <div class="meta">${site.city}</div>
       <div class="temp">${fmt(hour?.screening_air_temp_c ?? hour?.temp_c_mean, "°C")}</div>
       <div class="meta">Now ${site.now_risk || site.current_risk || "—"} · Peak ${site.peak_risk || "—"}</div>
+      <div class="meta">${site.exceedance_hours_mean != null ? `${Number(site.exceedance_hours_mean).toFixed(0)}h >30°C` : "duration —"}</div>
     `;
     card.onclick = () => {
       state.selectedSiteId = site.id;
@@ -100,6 +101,30 @@ function renderDetail() {
   document.getElementById("stat-min").textContent = fmt(hour?.temp_c_min, "°");
   document.getElementById("stat-mean").textContent = fmt(hour?.temp_c_mean, "°");
   document.getElementById("stat-max").textContent = fmt(hour?.temp_c_max, "°");
+  const p90El = document.getElementById("stat-p90");
+  if (p90El) p90El.textContent = fmt(hour?.temp_c_p90, "°");
+  const spreadEl = document.getElementById("stat-spread");
+  if (spreadEl) spreadEl.textContent = fmt(hour?.tile_spread_c, "°");
+
+  const cityEl = document.getElementById("city-contrast");
+  if (cityEl) {
+    const contrast = state.planner?.city_contrast;
+    const cityTemp = hour?.city_temp_c ?? contrast?.city_temp_c;
+    const delta = hour?.site_minus_city_c;
+    const exceed = site.exceedance_hours_mean;
+    const persist = site.persistence_hours_max;
+    const cityBits = [];
+    if (cityTemp != null) {
+      cityBits.push(`Miami city ${fmt(cityTemp, "°C")}`);
+      cityBits.push(`site mean ${fmt(hour?.temp_c_mean, "°C")}`);
+      if (delta != null) cityBits.push(`${delta >= 0 ? "+" : ""}${Number(delta).toFixed(1)}°C vs city`);
+    }
+    if (exceed != null) cityBits.push(`${Number(exceed).toFixed(0)}h above 30°C air temp`);
+    if (persist != null) cityBits.push(`longest run ${Number(persist).toFixed(0)}h`);
+    cityEl.textContent = cityBits.length
+      ? cityBits.join(" · ") + " · duration not used in OSHA risk"
+      : "City vs site contrast unavailable for this hour.";
+  }
 
   const riskEl = document.getElementById("risk-detail");
   const wr = hour?.work_rest || hour?.recommendation?.work_rest || {};
@@ -192,8 +217,18 @@ async function loadPlanner() {
     await loadBrief();
     const dataMode = (state.planner.data?.mode || "unknown").toUpperCase();
     const crew = state.acclimatized ? "acclimatized" : "unacclimatized";
+    let healthNote = "";
+    try {
+      const health = await fetchJson("/health");
+      const credits = health.credits_remaining;
+      const creditTxt = credits == null ? health.credits_status || "credits ?" : `${credits} credits`;
+      const lastPull = health.last_successful_pull ? ` · last live pull ${health.last_successful_pull}` : "";
+      healthNote = ` · ${creditTxt}${lastPull}`;
+    } catch {
+      healthNote = "";
+    }
     setStatus(
-      `Loaded ${state.planner.sites?.length || 0} sites · ${dataMode} data · ${crew} · ${state.workload} · ` +
+      `Loaded ${state.planner.sites?.length || 0} sites · ${dataMode} data · ${crew} · ${state.workload}${healthNote} · ` +
         (state.planner.comparison_at_10am?.answer || state.planner.comparison?.answer || "ready")
     );
   } catch (err) {

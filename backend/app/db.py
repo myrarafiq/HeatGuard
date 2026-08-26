@@ -77,6 +77,14 @@ def summarize_data_mode(hours: list[dict[str, Any]]) -> dict[str, Any]:
         mode = "live"
     else:
         mode = "unknown"
+    live_ok = [
+        row
+        for row in hours
+        if infer_data_source(row) == "live" and row.get("temp_c_mean") is not None
+    ]
+    last_pull = None
+    if live_ok:
+        last_pull = max((row.get("fetched_at") or "") for row in live_ok) or None
     return {
         "mode": mode,
         "mixed": mode == "mixed",
@@ -84,6 +92,7 @@ def summarize_data_mode(hours: list[dict[str, Any]]) -> dict[str, Any]:
         "live_hours": sources.count("live"),
         "fixture_hours": sources.count("fixture"),
         "unknown_hours": sources.count("unknown"),
+        "last_successful_pull": last_pull,
     }
 
 

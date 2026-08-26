@@ -35,8 +35,8 @@ LIVE_ANCHORS: dict[str, dict[str, float]] = {
     },
     "doral": {
         "temp_c_mean": 32.11,
-        "temp_c_min": 32.11,
-        "temp_c_max": 32.11,
+        "temp_c_min": 31.05,
+        "temp_c_max": 33.25,
         "wet_bulb_temperature_celsius": 26.4,
         "relative_humidity_percent": 72.3,
         "apparent_temperature_celsius": 35.0,
@@ -86,7 +86,10 @@ def build_demo_day(
             off = _diurnal_offset(when.hour)
             solar_scale = max(0.05, math.cos((when.hour - 13) / 10 * math.pi))
             temp = round(anchor["temp_c_mean"] + off, 2)
+            tmin = round(anchor["temp_c_min"] + off, 2)
+            tmax = round(anchor["temp_c_max"] + off, 2)
             tw = round(anchor["wet_bulb_temperature_celsius"] + off * 0.55, 2)
+            city_temp = round(31.0 + off * 0.85, 2)
             record = {
                 "site_id": site_id,
                 "site_name": site.name if site else site_id,
@@ -94,27 +97,55 @@ def build_demo_day(
                 "lat": site.lat if site else None,
                 "lon": site.lon if site else None,
                 "hour_local": when.isoformat(),
-                "temp_c_min": round(anchor["temp_c_min"] + off, 2),
+                "temp_c_min": tmin,
                 "temp_c_mean": temp,
-                "temp_c_max": round(anchor["temp_c_max"] + off, 2),
-                "temp_c_stdev": 0.08,
-                "tile_count": 9 if site_id == "brickell" else 3,
-                "tile_temperatures_c": [temp],
+                "temp_c_max": tmax,
+                "temp_c_p90": round(tmin + 0.85 * (tmax - tmin), 2),
+                "temp_c_stdev": round(max(0.05, (tmax - tmin) / 3), 2),
+                "tile_spread_c": round(tmax - tmin, 2),
+                "tile_count": 16 if site_id == "doral" else 9,
+                "tile_temperatures_c": [tmin, temp, tmax],
                 "apparent_temperature_celsius": round(anchor["apparent_temperature_celsius"] + off, 2),
                 "wet_bulb_temperature_celsius": tw,
                 "relative_humidity_percent": anchor["relative_humidity_percent"],
                 "heat_index_celsius": None,
                 "solar_ghi": round(anchor["solar_ghi"] * solar_scale, 1),
+                "city_temp_c": city_temp,
+                "city_forecast_source": "open-meteo",
+                "city_forecast_name": "Miami",
+                "site_minus_city_c": round(temp - city_temp, 2),
                 "heatmap_activity_id": "fixture",
                 "env_activity_id": "fixture",
+                "heatmap_analytic_type": "tcm",
                 "api_timestamp": when.isoformat(),
                 "missing_fields": [],
                 "source": "demo_fixture_from_live_1400_anchors",
                 "data_source": "fixture",
                 "heatmap_scope": "hour",
+                "duration_used_in_risk": False,
+                "duration_threshold_c": 30.0,
             }
             rows.append(record)
+        _stamp_duration(rows, site_id)
     return rows
+
+
+def _stamp_duration(rows: list[dict[str, Any]], site_id: str, threshold: float = 30.0) -> None:
+    site_rows = [row for row in rows if row["site_id"] == site_id]
+    above = [1 if (row.get("temp_c_mean") or 0) > threshold else 0 for row in site_rows]
+    exceedance = sum(above)
+    longest = 0
+    run = 0
+    for flag in above:
+        if flag:
+            run += 1
+            longest = max(longest, run)
+        else:
+            run = 0
+    for row in site_rows:
+        row["exceedance_hours_mean"] = float(exceedance)
+        row["exceedance_hours_max"] = float(exceedance)
+        row["persistence_hours_max"] = float(longest)
 
 
 def write_fixtures(path: Path | None = None) -> Path:
@@ -125,7 +156,9 @@ def write_fixtures(path: Path | None = None) -> Path:
         "description": (
             "12-hour demo day for Miami sites. Anchors at 14:00 use live FortyGuard values "
             "from 2024-07-15 for brickell/miami_beach/doral; coconut_grove/little_haiti "
-            "interpolated between coastal and inland. Diurnal curve is synthetic for demo resilience."
+            "interpolated between coastal and inland. Diurnal curve is synthetic for demo resilience. "
+            "Doral includes a within-site hotspot (~2°C tile spread). Each hour stores Miami city "
+            "temperature (Open-Meteo-shaped) vs site mean, plus exceedance/persistence hours above 30°C."
         ),
         "hours": rows,
     }

@@ -17,6 +17,8 @@ HARD RULES:
 6. If facts.data.mode is fixture, say the numbers are from the backup demo day — not a live FortyGuard pull. If mixed, say so.
 7. Repeat the planning assumption (unacclimatized vs acclimatized) if it is in the facts. Do not hide it.
 8. now_risk is the current or selected hour; peak_risk is the worst hour today. Do not call peak_risk "current."
+9. city_contrast is Open-Meteo Miami vs FortyGuard site means for the same hour — display only, not OSHA input.
+10. exceedance/persistence are hours above 30°C air temperature. They are not used in the OSHA WBGT estimate. Do not treat them as temperature.
 """
 
 
@@ -50,6 +52,19 @@ def render_brief_template(planner: dict[str, Any]) -> str:
         if clothing_label is not None:
             lines.append(f"Clothing: {clothing_label} (WBGT +{caf}°C).")
         lines.append("Screening air temperature: site hotspot (p90 / max), mean kept for comparison.")
+        lines.append("Hourly OSHA input: FortyGuard TCM snapshot. Exceedance/persistence are duration only.")
+        lines.append("")
+
+    contrast = planner.get("city_contrast") or {}
+    if contrast.get("city_temp_c") is not None:
+        hottest = contrast.get("hottest_vs_city") or {}
+        delta = hottest.get("site_minus_city_c")
+        delta_txt = f"{delta:+.1f}°C vs city" if delta is not None else "delta unknown"
+        lines.append(
+            f"City vs site ({contrast.get('city_name') or 'Miami'} {contrast['city_temp_c']}°C): "
+            f"{hottest.get('site_name') or hottest.get('site_id') or 'hottest site'} "
+            f"mean {hottest.get('site_temp_c_mean')}°C ({delta_txt})."
+        )
         lines.append("")
 
     if comparison.get("answer"):
@@ -61,8 +76,13 @@ def render_brief_template(planner: dict[str, Any]) -> str:
         n = len(site.get("hours") or [])
         now = site.get("now_risk") or site.get("current_risk")
         peak = site.get("peak_risk")
+        duration = ""
+        if site.get("exceedance_hours_mean") is not None:
+            duration = f", {site['exceedance_hours_mean']:.0f}h above 30°C air temp"
+        spread = site.get("tile_spread_c_max")
+        spread_txt = f", within-site spread {spread:.1f}°C" if spread is not None else ""
         lines.append(
-            f"- {site.get('name') or site['id']}: now {now}, peak {peak} ({n} hours)"
+            f"- {site.get('name') or site['id']}: now {now}, peak {peak} ({n} hours{duration}{spread_txt})"
         )
     lines.append("")
 
@@ -90,6 +110,38 @@ def answer_from_facts(question: str, planner: dict[str, Any]) -> str:
     comparison = ctx.get("comparison") or planner.get("comparison") or {}
     at_10 = ctx.get("comparison_at_10am") or planner.get("comparison_at_10am")
     workload = planner.get("workload", "heavy")
+
+    if any(
+        token in q
+        for token in (
+            "city temp",
+            "city weather",
+            "normal weather",
+            "open-meteo",
+            "versus weather",
+            "vs weather",
+            "vs fortyguard",
+            "versus forty",
+            "city vs",
+            "versus fortyguard",
+        )
+    ):
+        contrast = ctx.get("city_contrast") or planner.get("city_contrast") or {}
+        if contrast.get("city_temp_c") is None:
+            return "No city forecast is present in today's calculated results."
+        parts = [
+            f"{contrast.get('city_name') or 'Miami'} city temperature is {contrast['city_temp_c']}°C "
+            f"({contrast.get('city_forecast_source') or 'open-meteo'}) at {contrast.get('hour_local')}."
+        ]
+        for row in contrast.get("sites") or []:
+            delta = row.get("site_minus_city_c")
+            delta_txt = f"{delta:+.1f}°C vs city" if delta is not None else "delta unknown"
+            parts.append(
+                f"{row.get('site_name') or row.get('site_id')}: site mean "
+                f"{row.get('site_temp_c_mean')}°C ({delta_txt})."
+            )
+        parts.append("City forecast is not used in the OSHA screening calculation.")
+        return " ".join(parts)
 
     if "10" in q and ("best" in q or "prioritize" in q or "heavy" in q):
         if at_10 and at_10.get("answer"):

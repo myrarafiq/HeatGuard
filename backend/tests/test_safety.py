@@ -73,6 +73,25 @@ class RiskTests(unittest.TestCase):
         self.assertGreater(hotspot["effective_wbgt_c"], mean_only["effective_wbgt_c"])
         self.assertIsNotNone(hotspot["screening_wbgt_from_mean_c"])
 
+    def test_duration_metrics_do_not_change_wbgt(self) -> None:
+        hour = {
+            "site_id": "doral",
+            "hour_local": "2024-07-15T14:00:00-04:00",
+            "temp_c_mean": 32.11,
+            "temp_c_p90": 33.0,
+            "wet_bulb_temperature_celsius": 26.4,
+            "solar_ghi": 100,
+            "exceedance_hours_mean": 99.0,
+            "persistence_hours_max": 12.0,
+            "duration_used_in_risk": False,
+        }
+        with_duration = assess_hour(hour, "heavy")
+        without = assess_hour({**hour, "exceedance_hours_mean": None, "persistence_hours_max": None}, "heavy")
+        self.assertEqual(with_duration["effective_wbgt_c"], without["effective_wbgt_c"])
+        self.assertEqual(with_duration["level"], without["level"])
+        self.assertFalse(with_duration["duration_used_in_risk"])
+        self.assertEqual(with_duration["exceedance_hours_mean"], 99.0)
+
     def test_acclimatized_uses_tlv_as_red_line(self) -> None:
         # heavy AL=23 TLV=26. 24°C is amber unacclimatized, green acclimatized.
         self.assertEqual(risk_for_wbgt(24.0, "heavy", acclimatized=False)["level"], "amber")
@@ -221,6 +240,29 @@ class PlannerAiTests(unittest.TestCase):
         brief = render_brief_template(plan)
         self.assertIn("Heat Operations Brief", brief)
         self.assertIn("live FortyGuard", brief)
+
+    def test_city_contrast_question(self) -> None:
+        sites = [{"id": "doral", "name": "Doral", "city": "Doral", "surface": "asphalt", "lat": 1, "lon": 2}]
+        hours = [
+            {
+                "site_id": "doral",
+                "site_name": "Doral",
+                "hour_local": "2024-07-15T10:00:00-04:00",
+                "temp_c_mean": 32.5,
+                "wet_bulb_temperature_celsius": 26.0,
+                "solar_ghi": 100,
+                "city_temp_c": 31.0,
+                "city_forecast_source": "open-meteo",
+                "city_forecast_name": "Miami",
+                "site_minus_city_c": 1.5,
+                "data_source": "live",
+            }
+        ]
+        plan = build_planner(sites, hours, "heavy")
+        ans = answer_from_facts("How does the city vs FortyGuard site temperature compare?", plan)
+        self.assertIn("31.0", ans)
+        self.assertIn("32.5", ans)
+        self.assertIn("not used in the osha", ans.lower())
 
 
 if __name__ == "__main__":
