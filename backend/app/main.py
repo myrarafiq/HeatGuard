@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 
 from .config import ROOT
 from .db import connect, list_hours, summarize_data_mode
-from .fixtures import load_fixtures_into_db
+from .fixtures import build_demo_day, load_fixtures_into_db
 from .fortyguard_client import FortyGuardClient
 from .safety.ai import maybe_llm_explain, render_brief_template
 from .safety.planner import build_planner
@@ -47,6 +47,25 @@ app.add_middleware(
 )
 
 
+def _planner_hours() -> list:
+    """Hours for the planner. Never 500 on a read-only filesystem — fixtures are the demo fallback."""
+    try:
+        with connect() as conn:
+            hour_rows = list_hours(conn)
+        if not hour_rows:
+            load_fixtures_into_db()
+            with connect() as conn:
+                hour_rows = list_hours(conn)
+        if hour_rows:
+            return hour_rows
+    except Exception:
+        pass
+    rows = build_demo_day()
+    for row in rows:
+        row["data_source"] = "fixture"
+    return rows
+
+
 class AskBody(BaseModel):
     question: str = Field(..., min_length=1)
     workload: WorkloadParam = "heavy"
@@ -58,15 +77,21 @@ class AskBody(BaseModel):
 
 @app.get("/health")
 def health() -> dict:
-    with connect() as conn:
-        hour_rows = list_hours(conn)
-    summary = summarize_data_mode(hour_rows)
-    credits = {"credits_remaining": None, "credits_status": "skipped"}
+    db_error = None
     try:
-        with FortyGuardClient() as client:
-            credits = client.credits_remaining()
+        hour_rows = _planner_hours()
+        summary = summarize_data_mode(hour_rows)
     except Exception as exc:  # noqa: BLE001
-        credits = {"credits_remaining": None, "credits_status": "error", "credits_error": str(exc)}
+        db_error = str(exc)
+        hour_rows = []
+        summary = summarize_data_mode([])
+    credits = {"credits_remaining": None, "credits_status": "skipped"}
+    if not ON_VERCEL:
+        try:
+            with FortyGuardClient() as client:
+                credits = client.credits_remaining()
+        except Exception as exc:  # noqa: BLE001
+            credits = {"credits_remaining": None, "credits_status": "error", "credits_error": str(exc)}
     return {
         "status": "ok",
         "service": "heatguard",
@@ -74,6 +99,7 @@ def health() -> dict:
         "last_successful_pull": summary.get("last_successful_pull"),
         **summary,
         **credits,
+        **({"db_error": db_error} if db_error else {}),
     }
 
 
@@ -109,15 +135,27 @@ def workloads() -> dict:
 
 @app.get("/hours")
 def hours(site_id: str | None = None) -> dict:
-    with connect() as conn:
-        return {"hours": list_hours(conn, site_id)}
+    rows = _planner_hours()
+    if site_id:
+        rows = [row for row in rows if row.get("site_id") == site_id]
+    return {"hours": rows}
 
 
 @app.post("/demo/load-fixtures")
 def demo_load_fixtures() -> dict:
     """Replace DB contents with the backup demo day (never mixed with live rows)."""
-    n = load_fixtures_into_db(replace=True)
-    return {"loaded": n, "data_source": "fixture", "replaced": True}
+    try:
+        n = load_fixtures_into_db(replace=True)
+        return {"loaded": n, "data_source": "fixture", "replaced": True}
+    except Exception as exc:  # noqa: BLE001 — serverless may not persist SQLite
+        rows = build_demo_day()
+        return {
+            "loaded": len(rows),
+            "data_source": "fixture",
+            "replaced": False,
+            "persisted": False,
+            "error": str(exc),
+        }
 
 
 @app.get("/planner")
@@ -129,12 +167,7 @@ def planner(
     hour_local: str | None = Query(default=None),
 ) -> dict:
     site_rows = [site.to_public_dict() for site in load_sites()]
-    with connect() as conn:
-        hour_rows = list_hours(conn)
-    if not hour_rows:
-        load_fixtures_into_db()
-        with connect() as conn:
-            hour_rows = list_hours(conn)
+    hour_rows = _planner_hours()
     return build_planner(
         site_rows,
         hour_rows,

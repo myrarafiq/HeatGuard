@@ -4,93 +4,101 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>HeatGuard — Heat Safety Planner</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="/assets/styles.css" />
-    <!-- Vercel Web Analytics -->
     <script>
       window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
     </script>
     <script defer src="/_vercel/insights/script.js"></script>
   </head>
   <body>
-    <header>
-      <h1>HEAT SAFETY PLANNER</h1>
-      <p>Miami Construction Operations · FortyGuard Hackathon '26</p>
-      <p id="assumption-banner" class="assumption-banner">Planning assumption: unacclimatized / new hires present.</p>
+    <header class="command-strip">
+      <div class="command-top">
+        <div class="brand">
+          <h1>HEATGUARD</h1>
+          <p>HeatGuard · FortyGuard Hackathon '26</p>
+        </div>
+        <div class="command-controls">
+          <div id="plan-date" class="date-chip">—</div>
+          <div class="workload-row" role="group" aria-label="Workload">
+            <button type="button" class="workload-btn" data-workload="light">Light</button>
+            <button type="button" class="workload-btn" data-workload="moderate">Moderate</button>
+            <button type="button" class="workload-btn active" data-workload="heavy">Heavy</button>
+          </div>
+          <div id="data-mode" class="mode-chip">—</div>
+          <label class="tiny-toggle">
+            <input id="acclimatized-toggle" type="checkbox" />
+            Acclimatized
+          </label>
+          <label class="tiny-toggle">
+            <input id="extra-ppe-toggle" type="checkbox" />
+            Coveralls +0.5°C
+          </label>
+        </div>
+      </div>
+      <p id="one-sentence-plan" class="one-sentence">Loading today's plan…</p>
+      <p class="legend-line">
+        <span class="risk-mark risk-green">G</span> Green = below Action Limit
+        <span class="dot">·</span>
+        <span class="risk-mark risk-amber">A</span> Amber = between AL and TLV
+        <span class="dot">·</span>
+        <span class="risk-mark risk-red">R</span> Red = at/above TLV
+        <span class="dot">·</span>
+        Screening estimate, not a WBGT meter.
+      </p>
     </header>
+
     <div id="status" class="status-bar">Starting…</div>
 
-    <div class="layout">
-      <section>
-        <div class="panel">
-          <h2>Site map</h2>
-          <div id="site-grid" class="site-grid"></div>
+    <main class="layout">
+      <section class="stage">
+        <div class="panel map-panel">
+          <h2>Sites</h2>
+          <div id="site-map" class="leaflet-map" role="region" aria-label="Site map"></div>
         </div>
-
-        <div class="panel" style="margin-top: 1rem">
-          <h2>Today's shift plan</h2>
-          <ul id="actions-list" class="actions-list"></ul>
+        <div class="panel matrix-panel">
+          <h2>Site × hour — which site is best for this workload?</h2>
+          <div id="matrix" class="matrix"></div>
         </div>
+      </section>
 
-        <div class="panel" style="margin-top: 1rem">
-          <h2>AI supervisor brief</h2>
-          <p id="brief-text" class="brief-text">Loading brief…</p>
+      <section class="panel">
+        <h2>Today's moves</h2>
+        <div id="actions-list" class="action-cards"></div>
+      </section>
+
+      <div class="lower">
+        <section class="panel drill-panel">
+          <h2 id="site-title">Selected hour</h2>
+          <p id="site-surface" class="site-surface"></p>
+          <div id="risk-hero" class="risk-hero">Loading…</div>
+          <div id="action-detail" class="action-box">—</div>
+          <div id="wbgt-row" class="wbgt-row"></div>
+          <div class="stats-row">
+            <div class="stat"><label>Min</label><value id="stat-min">—</value></div>
+            <div class="stat"><label>Mean</label><value id="stat-mean">—</value></div>
+            <div class="stat"><label>Hotspot</label><value id="stat-hot">—</value></div>
+          </div>
+          <div id="city-contrast" class="city-chip">City vs site —</div>
+          <details id="why-color" class="why-color">
+            <summary>Why this color</summary>
+            <div id="why-color-body">Select a cell.</div>
+          </details>
+        </section>
+
+        <section class="panel ai-panel">
+          <h2>Supervisor notes</h2>
+          <ul id="ai-bullets" class="ai-bullets"></ul>
           <div class="ask-row">
             <input id="ask-input" type="text" placeholder="e.g. Which site is best for heavy work at 10 AM?" />
             <button id="ask-btn" type="button">Ask</button>
           </div>
           <div id="ask-answer" class="ask-answer" hidden></div>
-        </div>
-      </section>
+        </section>
+      </div>
+    </main>
 
-      <section>
-        <div class="panel">
-          <h2 id="site-title">SELECTED SITE</h2>
-          <p id="site-surface" class="site-surface"></p>
-
-          <div style="font-size: 0.75rem; color: var(--muted); text-transform: uppercase">Current hour</div>
-          <div id="temp-hero" class="temp-hero">— <span>°C</span></div>
-          <div id="feels-like" class="feels-like">Feels like — · display only, not OSHA risk</div>
-
-          <div class="stats-row">
-            <div class="stat"><label>Min</label><value id="stat-min">—</value></div>
-            <div class="stat"><label>Mean</label><value id="stat-mean">—</value></div>
-            <div class="stat"><label>Max</label><value id="stat-max">—</value></div>
-            <div class="stat"><label>P90</label><value id="stat-p90">—</value></div>
-            <div class="stat"><label>Spread</label><value id="stat-spread">—</value></div>
-          </div>
-          <div id="city-contrast" class="city-contrast"></div>
-
-          <h2>12-hour outlook</h2>
-          <div id="timeline" class="timeline"></div>
-
-          <h2 style="margin-top: 1rem">Work intensity</h2>
-          <div class="workload-row">
-            <button type="button" class="workload-btn" data-workload="light">Light</button>
-            <button type="button" class="workload-btn" data-workload="moderate">Moderate</button>
-            <button type="button" class="workload-btn active" data-workload="heavy">Heavy</button>
-          </div>
-          <label class="assumption-toggle">
-            <input id="acclimatized-toggle" type="checkbox" />
-            Acclimatized crew (TLV is the red line)
-          </label>
-          <label class="assumption-toggle">
-            <input id="extra-ppe-toggle" type="checkbox" />
-            Extra PPE / coveralls (OSHA SMS polypropylene +0.5°C)
-          </label>
-
-          <h2 style="margin-top: 1rem">Risk</h2>
-          <div id="risk-detail" class="risk-box">Loading…</div>
-
-          <h2 style="margin-top: 1rem">Recommended action</h2>
-          <div id="action-detail" class="action-box">Loading…</div>
-
-          <div style="margin-top: 1rem">
-            <button id="reload-btn" type="button" class="reload-btn">Reload data</button>
-          </div>
-        </div>
-      </section>
-    </div>
-
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="/assets/app.js"></script>
   </body>
 </html>

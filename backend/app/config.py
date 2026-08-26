@@ -32,11 +32,11 @@ FORTYGUARD_ENV_PARAMS = [
     ).split(",")
     if p.strip()
 ]
-_default_db = (
-    "/tmp/heat_planner.db"
-    if (os.getenv("VERCEL") or os.getenv("VERCEL_ENV"))
-    else str(ROOT / "backend" / "data" / "heat_planner.db")
-)
+_default_db = str(ROOT / "backend" / "data" / "heat_planner.db")
+if os.getenv("VERCEL") or os.getenv("VERCEL_ENV"):
+    # Serverless filesystem is read-only except /tmp. Never use the repo path.
+    os.environ["DATABASE_PATH"] = "/tmp/heat_planner.db"
+    _default_db = "/tmp/heat_planner.db"
 DATABASE_PATH = Path(os.getenv("DATABASE_PATH", _default_db))
 if not DATABASE_PATH.is_absolute():
     DATABASE_PATH = ROOT / DATABASE_PATH

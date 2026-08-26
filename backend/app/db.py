@@ -35,13 +35,26 @@ CREATE TABLE IF NOT EXISTS hourly_conditions (
 
 
 def connect(path: Path | None = None) -> sqlite3.Connection:
-    db_path = path or DATABASE_PATH
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
-    conn.execute(SCHEMA)
-    _ensure_columns(conn)
-    return conn
+    """Open SQLite, falling back to /tmp if the configured path is not writable."""
+    primary = Path(path or DATABASE_PATH)
+    candidates = [primary]
+    fallback = Path("/tmp/heat_planner.db")
+    if primary.resolve() != fallback.resolve():
+        candidates.append(fallback)
+    last_error: Exception | None = None
+    for db_path in candidates:
+        try:
+            db_path.parent.mkdir(parents=True, exist_ok=True)
+            conn = sqlite3.connect(str(db_path), timeout=10)
+            conn.row_factory = sqlite3.Row
+            conn.execute(SCHEMA)
+            _ensure_columns(conn)
+            conn.execute("PRAGMA user_version")
+            return conn
+        except OSError as exc:
+            last_error = exc
+            continue
+    raise last_error or OSError("Could not open a writable SQLite database")
 
 
 def _ensure_columns(conn: sqlite3.Connection) -> None:

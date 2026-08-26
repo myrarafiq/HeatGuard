@@ -259,6 +259,13 @@ class PipelineFetchTests(unittest.TestCase):
 
 
 class DataSourceTests(unittest.TestCase):
+    def test_connect_falls_back_when_path_unwritable(self):
+        conn = connect(Path("/no_such_dir_heatguard/heat.db"))
+        try:
+            conn.execute("SELECT 1")
+        finally:
+            conn.close()
+
     def test_hour_range_inclusive_window(self):
         start = datetime(2024, 7, 15, 6, 0, tzinfo=TZ)
         payload = hour_range(start, 12)
