@@ -115,6 +115,10 @@ SCREENING_AIR_TEMP_ORDER = ("temp_c_p90", "temp_c_max", "temp_c_mean")
 
 DEFAULT_ACCLIMATIZED = False
 DEFAULT_CLOTHING: ClothingId = "work_clothes"
+# Optional dashboard flag. Exact OSHA clothing-table row (not an invented bump):
+# SMS polypropylene coveralls, +0.5°C added to WBGT before Table 2.
+# Cotton/cloth coveralls are +0°C on the same table — we do not pretend they add heat.
+EXTRA_PPE_CLOTHING: ClothingId = "sms_coveralls"
 
 # OSHA Heat Hazard Recognition — clothing adjustment factors (°C) added to WBGT
 # to obtain effective WBGT. Adapted from NIOSH 2016. Do not invent these numbers.
@@ -210,6 +214,17 @@ WORK_REST_MINUTES: dict[str, tuple[int, int]] = {
 }
 
 
+def resolve_clothing(
+    clothing: ClothingId | str | None = None,
+    extra_ppe: bool = False,
+) -> ClothingId | str:
+    """Map the optional coveralls flag to the cited OSHA clothing-table row."""
+    chosen: ClothingId | str = clothing or DEFAULT_CLOTHING
+    if extra_ppe and chosen == DEFAULT_CLOTHING:
+        return EXTRA_PPE_CLOTHING
+    return chosen
+
+
 def clothing_adjustment_c(clothing: ClothingId | str) -> float:
     row = CLOTHING_ADJUSTMENT_C.get(clothing)  # type: ignore[arg-type]
     if row is None:
@@ -273,6 +288,7 @@ def planning_assumption(*, acclimatized: bool, clothing: ClothingId | str) -> di
             "Action Limit is the amber trip; TLV is the red line."
         )
         caution = "action_limit"
+    extra_ppe = str(clothing) != DEFAULT_CLOTHING
     return {
         "acclimatized": acclimatized,
         "crew": "acclimatized" if acclimatized else "unacclimatized",
@@ -282,6 +298,13 @@ def planning_assumption(*, acclimatized: bool, clothing: ClothingId | str) -> di
         "clothing": clothing,
         "clothing_label": clothing_row["label"],
         "clothing_adjustment_c": float(clothing_row["adjustment_c"]),
+        "extra_ppe": extra_ppe,
+        "extra_ppe_flag_clothing": EXTRA_PPE_CLOTHING,
+        "extra_ppe_flag_label": CLOTHING_ADJUSTMENT_C[EXTRA_PPE_CLOTHING]["label"],
+        "extra_ppe_flag_adjustment_c": float(
+            CLOTHING_ADJUSTMENT_C[EXTRA_PPE_CLOTHING]["adjustment_c"]
+        ),
+        "clothing_source": SOURCE_CITATION,
         "screening_air_temp": (
             "Hotspot (temp_c_p90, else temp_c_max, else temp_c_mean). "
             "Site mean is kept for comparison only."

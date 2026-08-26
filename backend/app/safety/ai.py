@@ -18,7 +18,9 @@ HARD RULES:
 7. Repeat the planning assumption (unacclimatized vs acclimatized) if it is in the facts. Do not hide it.
 8. now_risk is the current or selected hour; peak_risk is the worst hour today. Do not call peak_risk "current."
 9. city_contrast is Open-Meteo Miami vs FortyGuard site means for the same hour — display only, not OSHA input.
-10. exceedance/persistence are hours above 30°C air temperature. They are not used in the OSHA WBGT estimate. Do not treat them as temperature.
+11. Heat index / apparent temperature / feels_like_c are display-only. Do not treat them as the reason for Green/Amber/Red.
+12. TWL is not implemented. If asked, say FortyGuard has no wind or globe temperature.
+13. todays_actions is the four-move shift plan. threshold_flip is the documented OSHA Table 2 decision-change hour.
 """
 
 
@@ -51,6 +53,8 @@ def render_brief_template(planner: dict[str, Any]) -> str:
         caf = assumption.get("clothing_adjustment_c")
         if clothing_label is not None:
             lines.append(f"Clothing: {clothing_label} (WBGT +{caf}°C).")
+            if assumption.get("extra_ppe"):
+                lines.append("Extra PPE / coveralls flag is ON — OSHA clothing table CAF applied to effective WBGT.")
         lines.append("Screening air temperature: site hotspot (p90 / max), mean kept for comparison.")
         lines.append("Hourly OSHA input: FortyGuard TCM snapshot. Exceedance/persistence are duration only.")
         lines.append("")
@@ -65,6 +69,13 @@ def render_brief_template(planner: dict[str, Any]) -> str:
             f"{hottest.get('site_name') or hottest.get('site_id') or 'hottest site'} "
             f"mean {hottest.get('site_temp_c_mean')}°C ({delta_txt})."
         )
+        lines.append("")
+
+    flip = planner.get("threshold_flip") or {}
+    if flip.get("found") and flip.get("decision"):
+        lines.append(f"Decision change: {flip['decision']}")
+        if flip.get("note"):
+            lines.append(flip["note"])
         lines.append("")
 
     if comparison.get("answer"):
@@ -87,8 +98,8 @@ def render_brief_template(planner: dict[str, Any]) -> str:
     lines.append("")
 
     if actions:
-        lines.append("Recommended actions:")
-        for i, action in enumerate(actions[:6], 1):
+        lines.append("Shift plan:")
+        for i, action in enumerate(actions[:4], 1):
             lines.append(f"{i}. {action.get('title')} — {action.get('detail')}")
     else:
         lines.append("No recommended actions yet — load forecast hours first.")
@@ -143,6 +154,15 @@ def answer_from_facts(question: str, planner: dict[str, Any]) -> str:
         parts.append("City forecast is not used in the OSHA screening calculation.")
         return " ".join(parts)
 
+    if any(token in q for token in ("flip", "threshold", "decision change", "green and red", "send heavy")):
+        flip = ctx.get("threshold_flip") or planner.get("threshold_flip") or {}
+        if flip.get("found") and flip.get("decision"):
+            parts = [flip["decision"]]
+            if flip.get("note"):
+                parts.append(flip["note"])
+            return " ".join(parts)
+        return "No OSHA Table 2 decision-change hour is present in today's calculated results."
+
     if "10" in q and ("best" in q or "prioritize" in q or "heavy" in q):
         if at_10 and at_10.get("answer"):
             return at_10["answer"]
@@ -193,11 +213,33 @@ def answer_from_facts(question: str, planner: dict[str, Any]) -> str:
     if "prioritize" in q or "best" in q or "where" in q:
         return comparison.get("answer") or "No site comparison is available yet."
 
-    if "midday" in q or "break" in q:
-        actions = [a for a in (ctx.get("todays_actions") or planner.get("todays_actions") or []) if a.get("code") == "midday_break"]
+    if "midday" in q or "break" in q or "pause" in q or "shade" in q:
+        actions = [
+            a
+            for a in (ctx.get("todays_actions") or planner.get("todays_actions") or [])
+            if a.get("code") in {"pause_shade_window", "midday_break"}
+        ]
         if not actions:
             return "No midday-break actions were generated from today's calculated risk rows."
         return " ".join(f"{a.get('title')}: {a.get('detail')}" for a in actions)
+
+    if "move" in q or "shift plan" in q or "send" in q:
+        actions = ctx.get("todays_actions") or planner.get("todays_actions") or []
+        if not actions:
+            return "No shift plan is present in today's calculated results."
+        return " ".join(f"{a.get('title')}: {a.get('detail')}" for a in actions)
+
+    if "feels like" in q or "heat index" in q or "apparent" in q:
+        return (
+            "Heat index / apparent temperature are display-only. "
+            "Green/Amber/Red uses the screening WBGT estimate, not feels-like."
+        )
+
+    if "twl" in q or "thermal work limit" in q:
+        twl = (planner.get("methodology") or {}).get("twl") or {}
+        return twl.get("reason") or (
+            "TWL is not implemented. It needs wind and globe temperature; FortyGuard has neither."
+        )
 
     # Fallback: brief summary
     return render_brief_template(planner)

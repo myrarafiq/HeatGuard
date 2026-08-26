@@ -1,9 +1,15 @@
 import unittest
 
-from backend.app.safety.recommend import compare_sites_at_hour, in_midday_break, recommend_for_hour
+from backend.app.safety.recommend import (
+    compare_sites_at_hour,
+    in_midday_break,
+    recommend_for_hour,
+)
 from backend.app.safety.risk import assess_hour, risk_for_wbgt, screening_wbgt_c
 from backend.app.safety.planner import build_planner
 from backend.app.safety.ai import answer_from_facts, render_brief_template
+from backend.app.fixtures import build_demo_day
+from backend.app.sites import load_sites
 
 
 class RiskTests(unittest.TestCase):
@@ -150,6 +156,36 @@ class RiskTests(unittest.TestCase):
         self.assertIn("30/30", rec["primary_action"])
         self.assertIn("work_rest_30_30", rec["action_codes"])
 
+    def test_feels_like_is_display_only(self) -> None:
+        hour = {
+            "temp_c_mean": 29.0,
+            "apparent_temperature_celsius": 40.0,
+            "heat_index_celsius": 45.0,
+            "wet_bulb_temperature_celsius": 24.0,
+        }
+        assessed = assess_hour(hour, "heavy")
+        self.assertEqual(assessed["feels_like_c"], 40.0)
+        self.assertEqual(assessed["feels_like_source"], "apparent_temperature_celsius")
+        self.assertFalse(assessed["feels_like_used_in_risk"])
+        self.assertEqual(assessed["screening_air_temp_c"], 29.0)
+        self.assertLess(assessed["effective_wbgt_c"], 40.0)
+
+    def test_extra_ppe_uses_sms_coveralls_row(self) -> None:
+        from backend.app.safety.thresholds import EXTRA_PPE_CLOTHING, resolve_clothing
+
+        self.assertEqual(resolve_clothing(extra_ppe=True), EXTRA_PPE_CLOTHING)
+        hour = {
+            "site_id": "doral",
+            "hour_local": "2024-07-15T10:00:00-04:00",
+            "temp_c_mean": 29.0,
+            "wet_bulb_temperature_celsius": 24.0,
+            "solar_ghi": 100,
+        }
+        baseline = assess_hour(hour, "heavy", clothing="work_clothes")
+        ppe = assess_hour(hour, "heavy", clothing=EXTRA_PPE_CLOTHING)
+        self.assertEqual(ppe["clothing_adjustment_c"], 0.5)
+        self.assertAlmostEqual(ppe["effective_wbgt_c"], baseline["effective_wbgt_c"] + 0.5)
+
 
 class RecommendTests(unittest.TestCase):
     def test_midday_window(self) -> None:
@@ -263,6 +299,38 @@ class PlannerAiTests(unittest.TestCase):
         self.assertIn("31.0", ans)
         self.assertIn("32.5", ans)
         self.assertIn("not used in the osha", ans.lower())
+
+    def test_shift_plan_has_four_moves_and_threshold_flip(self) -> None:
+        sites = [s.to_public_dict() for s in load_sites()]
+        hours = build_demo_day()
+        plan = build_planner(sites, hours, "heavy")
+        codes = [a["code"] for a in plan["todays_actions"]]
+        self.assertEqual(
+            codes,
+            [
+                "do_this_morning",
+                "pause_shade_window",
+                "do_not_do_this_afternoon",
+                "move_work",
+            ],
+        )
+        self.assertIn("Send heavy crews", plan["shift_plan"]["move_work"]["detail"])
+        self.assertIn("hold", plan["shift_plan"]["move_work"]["detail"].lower())
+        flip = plan["threshold_flip"]
+        self.assertTrue(flip["found"])
+        self.assertEqual(flip["kind"], "same_workload_tlv")
+        self.assertIn("T10:", flip["hour_local"])
+        self.assertEqual(flip["hotter_site"]["level"], "red")
+        self.assertEqual(flip["cooler_site"]["level"], "amber")
+        self.assertEqual(flip["hotter_site"]["site_id"], "doral")
+        self.assertLess(flip["cooler_site"]["effective_wbgt_c"], 26.0)
+        self.assertGreaterEqual(flip["hotter_site"]["effective_wbgt_c"], 26.0)
+        self.assertFalse(plan["methodology"]["twl"]["implemented"])
+        brief = render_brief_template(plan)
+        self.assertIn("Shift plan:", brief)
+        self.assertIn("Decision change:", brief)
+        ans = answer_from_facts("Where should we send heavy crews?", plan)
+        self.assertIn("send heavy", ans.lower())
 
 
 if __name__ == "__main__":

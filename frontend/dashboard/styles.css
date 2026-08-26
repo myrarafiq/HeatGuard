@@ -166,6 +166,12 @@ header p {
   font-weight: 500;
 }
 
+.feels-like {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin: -0.25rem 0 0.75rem;
+}
+
 .stats-row {
   display: grid;
   grid-template-columns: repeat(5, 1fr);

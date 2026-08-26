@@ -80,7 +80,13 @@ OSHA: add a clothing adjustment factor to measured WBGT **before** comparing to 
 | Double-layer cloth clothing | 3.0 |
 | Limited-use vapor-barrier coveralls | 11.0 |
 
-Default assumption: **work clothing, CAF = 0**. The default is surfaced, not hidden.
+Default assumption: **work clothing, CAF = 0**. Long sleeves and a hard hat are in that baseline (not an extra bump).
+
+Optional dashboard flag **Extra PPE / coveralls** maps to one published coveralls row — **SMS polypropylene coveralls, +0.5°C** — not an invented “it feels hotter” fudge. Cloth (woven) coveralls are **+0°C** on the same OSHA table; we do not pretend cotton coveralls add heat. Other cited rows remain available via the `clothing` API parameter.
+
+## Thermal Work Limit (not implemented)
+
+TWL is **research notes only**. It is not a second scoring engine. TWL needs **wind speed** and **globe temperature**. FortyGuard provides neither. OSHA screening WBGT estimate (labeled) is the only risk engine.
 
 ## Acclimatization (surfaced, not methodology-only)
 
@@ -177,13 +183,30 @@ Default planning assumption: unacclimatized (see table above). Missing Tw or hot
 
 ## Recommendation rules (explainable)
 
-Each action cites inputs (`effective_wbgt`, limits, work/rest code, hour, site):
+Each action cites inputs (`effective_wbgt`, limits, work/rest code, hour, site). `todays_actions` is a **four-move shift plan**, not a stack of per-site warnings:
 
-1. Prefer **heavy** outdoor work in the coolest morning windows that are not `stop`.
-2. Hour recommendation leads with the ACGIH cycle (`45/15`, `30/30`, `15/45`, or `stop`), not a vague “drink more water.”
-3. If hour is in **12:30–15:00** and risk is amber/red → recommend **midday outdoor break / shift to shaded or indoor tasks**.
-4. Compare sites at the same hour → answer “best site for heavy work at 10 AM”.
-5. Missing data → skip that hour/site; never treat null as 0.
+1. **Do this morning** — which site, which hours, which workload (coolest morning window that is not `stop`).
+2. **Pause / shade window** — 12:30–15:00 where the site is amber/red (operational, not Florida law).
+3. **Do not do this afternoon** — which sites stay red after 15:00.
+4. **Move work** — send the selected workload to the cooler site at 10:00; hold the hotter site for light/indoor.
+
+Hour-level text still leads with the ACGIH cycle (`45/15`, `30/30`, `15/45`, or `stop`). Missing data → skip that hour/site; never treat null as 0.
+
+## Threshold-flip test (demo GO)
+
+The planner computes `threshold_flip` from **already-assessed hours** — it does not invent temperatures.
+
+Preference order:
+
+1. Same workload: Site A **green** (below Action Limit) and Site B **red** (at/above TLV)
+2. Same workload: **amber vs red** (TLV flip) or **green vs amber** (Action Limit flip)
+3. Same site: selected workload vs light/heavy — a Table 2 row change
+
+On the backup demo day (heavy, unacclimatized, work clothing), **10:00** is the documented GO: Miami Beach stays **below the heavy TLV** (amber) while Doral is **at/above TLV** (red). That is the Industrial punchline — move heavy crews, don’t just show a 1.3°C table. **06:00** is the Action Limit cousin (Beach green, Doral amber). **14:00 Miami Beach** also flips **heavy red vs light green** on the same hour.
+
+## Display-only: feels like
+
+`apparent_temperature_celsius` / `heat_index_celsius` are shown as **feels like**. They **never** drive Green/Amber/Red. OSHA screening uses the WBGT estimate.
 
 ## AI rule (Day 8)
 

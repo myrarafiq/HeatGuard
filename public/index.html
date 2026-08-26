@@ -27,7 +27,7 @@
         </div>
 
         <div class="panel" style="margin-top: 1rem">
-          <h2>Today's recommendations</h2>
+          <h2>Today's shift plan</h2>
           <ul id="actions-list" class="actions-list"></ul>
         </div>
 
@@ -49,6 +49,7 @@
 
           <div style="font-size: 0.75rem; color: var(--muted); text-transform: uppercase">Current hour</div>
           <div id="temp-hero" class="temp-hero">— <span>°C</span></div>
+          <div id="feels-like" class="feels-like">Feels like — · display only, not OSHA risk</div>
 
           <div class="stats-row">
             <div class="stat"><label>Min</label><value id="stat-min">—</value></div>
@@ -71,6 +72,10 @@
           <label class="assumption-toggle">
             <input id="acclimatized-toggle" type="checkbox" />
             Acclimatized crew (TLV is the red line)
+          </label>
+          <label class="assumption-toggle">
+            <input id="extra-ppe-toggle" type="checkbox" />
+            Extra PPE / coveralls (OSHA SMS polypropylene +0.5°C)
           </label>
 
           <h2 style="margin-top: 1rem">Risk</h2>

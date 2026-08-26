@@ -41,6 +41,17 @@ def screening_air_temp_c(hour: dict[str, Any]) -> tuple[float | None, str]:
     return None, "missing"
 
 
+def feels_like_display(hour: dict[str, Any]) -> tuple[float | None, str | None]:
+    """Workers-feel layer. Never used as Ta in the WBGT screening formula."""
+    apparent = hour.get("apparent_temperature_celsius")
+    if apparent is not None:
+        return float(apparent), "apparent_temperature_celsius"
+    heat_index = hour.get("heat_index_celsius")
+    if heat_index is not None:
+        return float(heat_index), "heat_index_celsius"
+    return None, None
+
+
 def screening_wbgt_c(
     *,
     wet_bulb_c: float | None,
@@ -158,6 +169,7 @@ def assess_hour(
     )
     caf = clothing_adjustment_c(clothing)
     effective = None if hotspot_wbgt is None else round(hotspot_wbgt + caf, 2)
+    feels_c, feels_source = feels_like_display(hour)
 
     risk = risk_for_wbgt(effective, workload, acclimatized=acclimatized)
     work_rest = work_rest_for(effective, workload, acclimatized=acclimatized)
@@ -180,6 +192,9 @@ def assess_hour(
         "wet_bulb_temperature_celsius": hour.get("wet_bulb_temperature_celsius"),
         "relative_humidity_percent": hour.get("relative_humidity_percent"),
         "heat_index_celsius": hour.get("heat_index_celsius"),
+        "feels_like_c": feels_c,
+        "feels_like_source": feels_source,
+        "feels_like_used_in_risk": False,
         "solar_ghi": hour.get("solar_ghi"),
         "tile_spread_c": hour.get("tile_spread_c"),
         "city_temp_c": hour.get("city_temp_c"),

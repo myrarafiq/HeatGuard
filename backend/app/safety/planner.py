@@ -8,6 +8,7 @@ from .recommend import (
     best_windows_for_site,
     build_site_timeline,
     compare_sites_at_hour,
+    threshold_flip,
     todays_actions,
 )
 from .thresholds import (
@@ -102,8 +103,16 @@ def build_planner(
     )
     at_10 = compare_sites_at_hour(all_assessments, hour_local=ten_am) if ten_am else None
     data_mode = summarize_data_mode(hours)
-    actions = todays_actions(timelines, workload)
+    site_names = {s["id"]: s.get("name") or s["id"] for s in sites if s.get("id")}
+    actions = todays_actions(timelines, workload, site_names=site_names)
     contrast = _city_contrast(hours, hour_local=hour_local or ten_am)
+    flip = threshold_flip(
+        hours,
+        workload,
+        acclimatized=acclimatized,
+        clothing=clothing,
+        site_names=site_names,
+    )
 
     return {
         "workload": workload,
@@ -128,9 +137,20 @@ def build_planner(
                 "Heat index / apparent temperature / city forecast are display-only and are not used in the WBGT estimate."
             ),
             "doc": "backend/safety/METHODOLOGY.md",
+            "twl": {
+                "implemented": False,
+                "reason": (
+                    "Thermal Work Limit needs wind speed and globe temperature. "
+                    "FortyGuard provides neither, so TWL is research notes only — "
+                    "not a second scoring engine."
+                ),
+            },
+            "feels_like": "apparent_temperature / heat_index are display-only and never drive Green/Amber/Red.",
         },
         "sites": site_summaries,
         "todays_actions": actions,
+        "shift_plan": {a["code"]: a for a in actions},
+        "threshold_flip": flip,
         "comparison": comparison,
         "comparison_at_10am": at_10,
         "ai_context": _ai_context(
@@ -142,6 +162,7 @@ def build_planner(
             data_mode,
             assumption,
             contrast,
+            flip,
         ),
     }
 
@@ -287,6 +308,7 @@ def _ai_context(
     data_mode: dict[str, Any],
     assumption: dict[str, Any],
     city_contrast: dict[str, Any] | None = None,
+    threshold_flip_doc: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Compact structured facts for the explainer — no raw inventable blanks."""
     return {
@@ -294,6 +316,8 @@ def _ai_context(
         "assumption": assumption,
         "data": data_mode,
         "city_contrast": city_contrast,
+        "threshold_flip": threshold_flip_doc,
+        "todays_actions": actions,
         "sites": [
             {
                 "id": s["id"],
@@ -322,6 +346,8 @@ def _ai_context(
                         "city_temp_c": h.get("city_temp_c"),
                         "site_minus_city_c": h.get("site_minus_city_c"),
                         "wet_bulb_temperature_celsius": h.get("wet_bulb_temperature_celsius"),
+                        "feels_like_c": h.get("feels_like_c"),
+                        "feels_like_used_in_risk": False,
                         "work_rest": (h.get("work_rest") or {}).get("code"),
                         "data_source": h.get("data_source"),
                         "primary_action": (h.get("recommendation") or {}).get("primary_action"),
@@ -331,7 +357,6 @@ def _ai_context(
             }
             for s in sites
         ],
-        "todays_actions": actions,
         "comparison": comparison,
         "comparison_at_10am": at_10,
     }

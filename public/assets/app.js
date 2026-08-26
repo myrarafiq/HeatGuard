@@ -3,6 +3,7 @@ const API = ""; // same origin when served by FastAPI
 let state = {
   workload: "heavy",
   acclimatized: false,
+  extraPpe: false,
   planner: null,
   selectedSiteId: "brickell",
   selectedHourLocal: null,
@@ -12,6 +13,7 @@ function plannerQuery() {
   const params = new URLSearchParams({
     workload: state.workload,
     acclimatized: String(state.acclimatized),
+    extra_ppe: String(state.extraPpe),
   });
   if (state.selectedHourLocal) params.set("hour_local", state.selectedHourLocal);
   return params.toString();
@@ -77,6 +79,7 @@ function renderSiteGrid() {
       <div class="name"><span class="risk-dot ${riskClass(site.now_risk || site.current_risk)}"></span>${site.name}</div>
       <div class="meta">${site.city}</div>
       <div class="temp">${fmt(hour?.screening_air_temp_c ?? hour?.temp_c_mean, "°C")}</div>
+      <div class="meta">Feels like ${fmt(hour?.feels_like_c ?? hour?.apparent_temperature_celsius, "°C")}</div>
       <div class="meta">Now ${site.now_risk || site.current_risk || "—"} · Peak ${site.peak_risk || "—"}</div>
       <div class="meta">${site.exceedance_hours_mean != null ? `${Number(site.exceedance_hours_mean).toFixed(0)}h >30°C` : "duration —"}</div>
     `;
@@ -98,6 +101,11 @@ function renderDetail() {
   document.getElementById("site-title").textContent = site.name.toUpperCase();
   document.getElementById("site-surface").textContent = site.surface || "";
   document.getElementById("temp-hero").innerHTML = `${fmt(hour?.screening_air_temp_c ?? hour?.temp_c_mean)} <span>°C hotspot</span>`;
+  const feelsEl = document.getElementById("feels-like");
+  if (feelsEl) {
+    const feels = hour?.feels_like_c ?? hour?.apparent_temperature_celsius ?? hour?.heat_index_celsius;
+    feelsEl.textContent = `Feels like ${fmt(feels, "°C")} · display only, not OSHA risk`;
+  }
   document.getElementById("stat-min").textContent = fmt(hour?.temp_c_min, "°");
   document.getElementById("stat-mean").textContent = fmt(hour?.temp_c_mean, "°");
   document.getElementById("stat-max").textContent = fmt(hour?.temp_c_max, "°");
@@ -175,9 +183,9 @@ function renderActions() {
     list.innerHTML = "<li>No actions generated yet.</li>";
     return;
   }
-  for (const a of actions.slice(0, 8)) {
+  for (const a of actions.slice(0, 4)) {
     const li = document.createElement("li");
-    li.innerHTML = `<strong>${a.title}</strong><br><span style="color:var(--muted)">${a.detail || ""}</span>`;
+    li.innerHTML = `<strong>${a.move || ""}. ${a.title}</strong><br><span style="color:var(--muted)">${a.detail || ""}</span>`;
     list.appendChild(li);
   }
 }
@@ -194,6 +202,8 @@ function renderAssumption() {
   if (el) el.textContent = label || "Planning assumption: unacclimatized / new hires present.";
   const toggle = document.getElementById("acclimatized-toggle");
   if (toggle) toggle.checked = state.acclimatized;
+  const ppe = document.getElementById("extra-ppe-toggle");
+  if (ppe) ppe.checked = state.extraPpe;
 }
 
 async function loadBrief() {
@@ -260,6 +270,7 @@ async function askQuestion() {
         question: q,
         workload: state.workload,
         acclimatized: state.acclimatized,
+        extra_ppe: state.extraPpe,
         hour_local: state.selectedHourLocal,
       }),
     });
@@ -285,6 +296,10 @@ document.getElementById("ask-input").addEventListener("keydown", (e) => {
 });
 document.getElementById("acclimatized-toggle")?.addEventListener("change", (e) => {
   state.acclimatized = Boolean(e.target.checked);
+  loadPlanner();
+});
+document.getElementById("extra-ppe-toggle")?.addEventListener("change", (e) => {
+  state.extraPpe = Boolean(e.target.checked);
   loadPlanner();
 });
 
