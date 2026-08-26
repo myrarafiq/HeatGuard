@@ -14,6 +14,7 @@ HARD RULES:
 3. You MUST NOT recalculate safety. Risk math was already done using OSHA/NIOSH/ACGIH screening limits.
 4. If the JSON lacks the answer, say you cannot tell from today's calculated results.
 5. Keep language practical and short. No medical diagnosis. Screening guidance only — not a certified WBGT instrument.
+6. If facts.data.mode is fixture, say the numbers are from the backup demo day — not a live FortyGuard pull. If mixed, say so.
 """
 
 
@@ -27,6 +28,17 @@ def render_brief_template(planner: dict[str, Any]) -> str:
         f"Today's Heat Operations Brief — workload: {workload}",
         "",
     ]
+    data = planner.get("data") or {}
+    mode = data.get("mode")
+    if mode == "fixture":
+        lines.append("Data: backup demo fixtures — not a live FortyGuard pull.")
+        lines.append("")
+    elif mode == "mixed":
+        lines.append("Data: MIXED live and fixture hours — do not treat as one source.")
+        lines.append("")
+    elif mode == "live":
+        lines.append("Data: live FortyGuard pull.")
+        lines.append("")
     if comparison.get("answer"):
         lines.append(f"Site ranking: {comparison['answer']}")
         lines.append("")

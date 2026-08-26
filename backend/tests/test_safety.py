@@ -109,6 +109,7 @@ class PlannerAiTests(unittest.TestCase):
                 "temp_c_mean": 29.0,
                 "wet_bulb_temperature_celsius": 24.0,
                 "solar_ghi": 500,
+                "data_source": "live",
             },
             {
                 "site_id": "doral",
@@ -116,10 +117,12 @@ class PlannerAiTests(unittest.TestCase):
                 "temp_c_mean": 32.0,
                 "wet_bulb_temperature_celsius": 26.5,
                 "solar_ghi": 700,
+                "data_source": "live",
             },
         ]
         plan = build_planner(sites, hours, "heavy")
         self.assertIsNotNone(plan["comparison_at_10am"]["best_site_id"])
+        self.assertEqual(plan["data"]["mode"], "live")
         ans = answer_from_facts(
             "Which site has the best conditions for heavy outdoor work at 10 AM?",
             plan,
@@ -127,6 +130,7 @@ class PlannerAiTests(unittest.TestCase):
         self.assertIn("brickell", ans.lower())
         brief = render_brief_template(plan)
         self.assertIn("Heat Operations Brief", brief)
+        self.assertIn("live FortyGuard", brief)
 
 
 if __name__ == "__main__":

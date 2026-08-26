@@ -106,5 +106,8 @@ def assess_hour(hour: dict[str, Any], workload: Workload) -> dict[str, Any]:
         "apparent_temperature_celsius": hour.get("apparent_temperature_celsius"),
         "relative_humidity_percent": hour.get("relative_humidity_percent"),
         "solar_ghi": hour.get("solar_ghi"),
+        "temp_c_p90": hour.get("temp_c_p90"),
+        "data_source": hour.get("data_source"),
+        "heatmap_scope": hour.get("heatmap_scope"),
         "missing_fields": hour.get("missing_fields") or [],
     }

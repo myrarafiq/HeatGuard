@@ -9,9 +9,9 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
 from backend.app.fortyguard_client import FortyGuardClient
-from backend.app.pipeline import fetch_site_hour
+from backend.app.pipeline import fetch_site_hour, fetch_site_hours
 from backend.app.sites import load_sites
-from backend.app.time_windows import next_hours, parse_local_hour
+from backend.app.time_windows import parse_local_hour
 
 
 def main() -> None:
@@ -34,16 +34,20 @@ def main() -> None:
         except Exception as exc:
             print(f"(credits lookup skipped: {exc})")
         for site in sites:
-            for hour in next_hours(start, args.hours):
-                print(f"Fetching {site.id} @ {hour.isoformat()} ...")
-                record = fetch_site_hour(client, site, hour)
-                rows.append(record)
+            print(f"Fetching {site.id} ({args.hours}h from {start.isoformat()}) ...")
+            if args.hours == 1:
+                batch = [fetch_site_hour(client, site, start)]
+            else:
+                batch = fetch_site_hours(client, site, start, hours=args.hours)
+            rows.extend(batch)
+            for record in batch:
                 print(
-                    f"  mean={record.get('temp_c_mean')} "
+                    f"  {record.get('hour_local')} mean={record.get('temp_c_mean')} "
                     f"min={record.get('temp_c_min')} max={record.get('temp_c_max')} "
                     f"tiles={record.get('tile_count')} "
                     f"Tw={record.get('wet_bulb_temperature_celsius')} "
-                    f"RH={record.get('relative_humidity_percent')}"
+                    f"RH={record.get('relative_humidity_percent')} "
+                    f"src={record.get('data_source')}"
                 )
 
     print("\nGO/NO-GO comparison (same hour, different sites)")

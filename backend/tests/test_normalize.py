@@ -48,6 +48,7 @@ class NormalizeTests(unittest.TestCase):
         )
         self.assertIsNone(record["temp_c_mean"])
         self.assertIn("temp_c_mean", record["missing_fields"])
+        self.assertEqual(record["data_source"], "live")
 
 
 if __name__ == "__main__":

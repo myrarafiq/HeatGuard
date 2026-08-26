@@ -8,7 +8,7 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from backend.app.config import ROOT
-from backend.app.db import connect, upsert_hour
+from backend.app.db import clear_hours, connect, upsert_hour
 from backend.app.sites import load_sites
 
 FIXTURES_PATH = ROOT / "backend" / "data" / "fixtures" / "demo_day.json"
@@ -110,6 +110,8 @@ def build_demo_day(
                 "api_timestamp": when.isoformat(),
                 "missing_fields": [],
                 "source": "demo_fixture_from_live_1400_anchors",
+                "data_source": "fixture",
+                "heatmap_scope": "hour",
             }
             rows.append(record)
     return rows
@@ -131,13 +133,22 @@ def write_fixtures(path: Path | None = None) -> Path:
     return out
 
 
-def load_fixtures_into_db(path: Path | None = None) -> int:
+def load_fixtures_into_db(path: Path | None = None, *, replace: bool = True) -> int:
+    """Load backup demo hours.
+
+    replace=True (default) clears existing rows first so live and fixture data
+    are never mixed silently.
+    """
     fixture_path = path or FIXTURES_PATH
     if not fixture_path.exists():
         write_fixtures(fixture_path)
     data = json.loads(fixture_path.read_text())
     rows = data["hours"] if isinstance(data, dict) else data
     with connect() as conn:
+        if replace:
+            clear_hours(conn)
         for row in rows:
-            upsert_hour(conn, row)
+            stored = dict(row)
+            stored["data_source"] = "fixture"
+            upsert_hour(conn, stored)
     return len(rows)

@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from .config import ROOT
-from .db import connect, list_hours
+from .db import connect, list_hours, summarize_data_mode
 from .fixtures import load_fixtures_into_db
 from .safety.ai import maybe_llm_explain, render_brief_template
 from .safety.planner import build_planner
@@ -43,8 +43,10 @@ class AskBody(BaseModel):
 
 
 @app.get("/health")
-def health() -> dict[str, str]:
-    return {"status": "ok", "service": "heatguard"}
+def health() -> dict:
+    with connect() as conn:
+        hour_rows = list_hours(conn)
+    return {"status": "ok", "service": "heatguard", **summarize_data_mode(hour_rows)}
 
 
 @app.get("/sites")
@@ -73,9 +75,9 @@ def hours(site_id: str | None = None) -> dict:
 
 @app.post("/demo/load-fixtures")
 def demo_load_fixtures() -> dict:
-    """Load backup demo day into SQLite (for judging if live API is down)."""
-    n = load_fixtures_into_db()
-    return {"loaded": n}
+    """Replace DB contents with the backup demo day (never mixed with live rows)."""
+    n = load_fixtures_into_db(replace=True)
+    return {"loaded": n, "data_source": "fixture", "replaced": True}
 
 
 @app.get("/planner")

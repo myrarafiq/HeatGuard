@@ -168,8 +168,9 @@ async function loadPlanner() {
     }
     renderAll();
     await loadBrief();
+    const dataMode = (state.planner.data?.mode || "unknown").toUpperCase();
     setStatus(
-      `Loaded ${state.planner.sites?.length || 0} sites · workload: ${state.workload} · ` +
+      `Loaded ${state.planner.sites?.length || 0} sites · ${dataMode} data · workload: ${state.workload} · ` +
         (state.planner.comparison_at_10am?.answer || state.planner.comparison?.answer || "ready")
     );
   } catch (err) {

@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS hourly_conditions (
     env_activity_id TEXT,
     payload_json TEXT NOT NULL,
     fetched_at TEXT NOT NULL,
+    data_source TEXT,
     UNIQUE(site_id, hour_local)
 );
 """
@@ -39,18 +40,69 @@ def connect(path: Path | None = None) -> sqlite3.Connection:
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     conn.execute(SCHEMA)
+    _ensure_columns(conn)
     return conn
 
 
+def _ensure_columns(conn: sqlite3.Connection) -> None:
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(hourly_conditions)")}
+    if "data_source" not in cols:
+        conn.execute("ALTER TABLE hourly_conditions ADD COLUMN data_source TEXT")
+        conn.commit()
+
+
+def infer_data_source(record: dict[str, Any]) -> str:
+    explicit = record.get("data_source")
+    if explicit in {"live", "fixture"}:
+        return explicit
+    activity = str(record.get("heatmap_activity_id") or "")
+    source = str(record.get("source") or "")
+    if activity == "fixture" or "fixture" in source:
+        return "fixture"
+    if activity:
+        return "live"
+    return "unknown"
+
+
+def summarize_data_mode(hours: list[dict[str, Any]]) -> dict[str, Any]:
+    sources = [infer_data_source(row) for row in hours]
+    kinds = {item for item in sources if item != "unknown"}
+    if not hours:
+        mode = "empty"
+    elif "live" in kinds and "fixture" in kinds:
+        mode = "mixed"
+    elif "fixture" in kinds:
+        mode = "fixture"
+    elif "live" in kinds:
+        mode = "live"
+    else:
+        mode = "unknown"
+    return {
+        "mode": mode,
+        "mixed": mode == "mixed",
+        "hour_count": len(hours),
+        "live_hours": sources.count("live"),
+        "fixture_hours": sources.count("fixture"),
+        "unknown_hours": sources.count("unknown"),
+    }
+
+
+def clear_hours(conn: sqlite3.Connection) -> None:
+    conn.execute("DELETE FROM hourly_conditions")
+    conn.commit()
+
+
 def upsert_hour(conn: sqlite3.Connection, record: dict[str, Any]) -> None:
+    data_source = infer_data_source(record)
+    stored = {**record, "data_source": data_source}
     conn.execute(
         """
         INSERT INTO hourly_conditions (
             site_id, hour_local, temp_c_min, temp_c_mean, temp_c_max, temp_c_stdev,
             tile_count, apparent_temperature_celsius, wet_bulb_temperature_celsius,
             relative_humidity_percent, heat_index_celsius, solar_ghi,
-            heatmap_activity_id, env_activity_id, payload_json, fetched_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            heatmap_activity_id, env_activity_id, payload_json, fetched_at, data_source
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(site_id, hour_local) DO UPDATE SET
             temp_c_min=excluded.temp_c_min,
             temp_c_mean=excluded.temp_c_mean,
@@ -65,25 +117,27 @@ def upsert_hour(conn: sqlite3.Connection, record: dict[str, Any]) -> None:
             heatmap_activity_id=excluded.heatmap_activity_id,
             env_activity_id=excluded.env_activity_id,
             payload_json=excluded.payload_json,
-            fetched_at=excluded.fetched_at
+            fetched_at=excluded.fetched_at,
+            data_source=excluded.data_source
         """,
         (
-            record["site_id"],
-            record["hour_local"],
-            record.get("temp_c_min"),
-            record.get("temp_c_mean"),
-            record.get("temp_c_max"),
-            record.get("temp_c_stdev"),
-            record.get("tile_count"),
-            record.get("apparent_temperature_celsius"),
-            record.get("wet_bulb_temperature_celsius"),
-            record.get("relative_humidity_percent"),
-            record.get("heat_index_celsius"),
-            record.get("solar_ghi"),
-            record.get("heatmap_activity_id"),
-            record.get("env_activity_id"),
-            json.dumps(record),
+            stored["site_id"],
+            stored["hour_local"],
+            stored.get("temp_c_min"),
+            stored.get("temp_c_mean"),
+            stored.get("temp_c_max"),
+            stored.get("temp_c_stdev"),
+            stored.get("tile_count"),
+            stored.get("apparent_temperature_celsius"),
+            stored.get("wet_bulb_temperature_celsius"),
+            stored.get("relative_humidity_percent"),
+            stored.get("heat_index_celsius"),
+            stored.get("solar_ghi"),
+            stored.get("heatmap_activity_id"),
+            stored.get("env_activity_id"),
+            json.dumps(stored),
             datetime.now(timezone.utc).isoformat(),
+            data_source,
         ),
     )
     conn.commit()
@@ -101,5 +155,6 @@ def list_hours(conn: sqlite3.Connection, site_id: str | None = None) -> list[dic
     for row in rows:
         payload = json.loads(row["payload_json"])
         payload["fetched_at"] = row["fetched_at"]
+        payload["data_source"] = infer_data_source(payload)
         out.append(payload)
     return out
