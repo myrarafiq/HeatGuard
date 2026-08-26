@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any
 
 from .risk import assess_hour
-from .thresholds import MIDDAY_BREAK_END, MIDDAY_BREAK_START, Workload
+from .thresholds import DEFAULT_ACCLIMATIZED, DEFAULT_CLOTHING, ClothingId, MIDDAY_BREAK_END, MIDDAY_BREAK_START, Workload
 
 
 def _parse_hour(hour_local: str) -> datetime | None:
@@ -33,25 +33,43 @@ def recommend_for_hour(assessment: dict[str, Any]) -> dict[str, Any]:
     level = assessment["level"]
     workload = assessment["workload"]
     midday = in_midday_break(str(assessment.get("hour_local") or ""))
+    work_rest = assessment.get("work_rest") or {}
+    cycle = work_rest.get("code")
     actions: list[str] = []
     codes: list[str] = []
 
-    if level == "unknown":
+    if level == "unknown" or cycle == "unknown":
         actions.append("Hold judgment for this hour — required environmental inputs are missing.")
         codes.append("missing_data")
-    elif level == "green":
-        actions.append(f"Conditions support planned {workload} outdoor work with normal hydration/rest.")
-        codes.append("proceed")
-    elif level == "amber":
+    elif cycle == "stop" or (not cycle and level == "red"):
+        if cycle == "stop":
+            actions.append(
+                f"Stop continuous outdoor {workload} work this hour — ACGIH 0–25% work allocation "
+                f"is the remaining published band (or is already exceeded)."
+            )
+        else:
+            actions.append(
+                f"Stop continuous outdoor {workload} work this hour (red — at/above TLV)."
+            )
+        codes.append("stop")
+    elif cycle in {"45/15", "30/30", "15/45"}:
+        work_min = work_rest.get("work_min")
+        rest_min = work_rest.get("rest_min")
+        allocation = work_rest.get("allocation") or "published allocation"
         actions.append(
-            f"Increase rest/water cycles; consider reducing continuous {workload} outdoor exposure."
+            f"Work/rest {cycle} ({work_min} min work / {rest_min} min rest each hour) "
+            f"for {workload} work — ACGIH {allocation}."
+        )
+        codes.append(f"work_rest_{cycle.replace('/', '_')}")
+    elif not cycle and level == "amber":
+        actions.append(
+            f"Do not treat this as continuous {workload} work — amber is at/above the Action Limit. "
+            "Use the ACGIH work/rest cycle attached to this hour when available."
         )
         codes.append("increase_controls")
     else:
-        actions.append(
-            f"Do not schedule continuous outdoor {workload} work — reduce intensity, add shade/rest, or reschedule."
-        )
-        codes.append("restrict_outdoor")
+        actions.append(f"Conditions support planned {workload} outdoor work with conventional breaks.")
+        codes.append("proceed")
 
     if midday and level in {"amber", "red"}:
         actions.append(
@@ -60,13 +78,14 @@ def recommend_for_hour(assessment: dict[str, Any]) -> dict[str, Any]:
         )
         codes.append("midday_break")
 
-    if level == "green" and workload == "heavy" and not midday:
+    if level == "green" and workload == "heavy" and not midday and cycle not in {"stop", "unknown"}:
         actions.append("Prefer this window for heavy outdoor tasks if the day heats up later.")
         codes.append("prefer_heavy_window")
 
     return {
         "action_codes": codes,
         "actions": actions,
+        "work_rest": work_rest,
         "midday_break_window": midday,
         "primary_action": actions[0] if actions else None,
         "explanation": assessment.get("reason"),
@@ -92,7 +111,10 @@ def compare_sites_at_hour(
 
     ranked = sorted(
         usable,
-        key=lambda a: _score(a["level"], a.get("screening_wbgt_c")),
+        key=lambda a: _score(
+            a["level"],
+            a.get("effective_wbgt_c") if a.get("effective_wbgt_c") is not None else a.get("screening_wbgt_c"),
+        ),
     )
     best = ranked[0]
     worst = ranked[-1]
@@ -101,7 +123,10 @@ def compare_sites_at_hour(
             "site_id": a["site_id"],
             "level": a["level"],
             "screening_wbgt_c": a.get("screening_wbgt_c"),
+            "effective_wbgt_c": a.get("effective_wbgt_c"),
             "temp_c_mean": a.get("temp_c_mean"),
+            "screening_air_temp_c": a.get("screening_air_temp_c"),
+            "work_rest": (a.get("work_rest") or {}).get("code"),
             "reason": a.get("reason"),
         }
         for a in ranked
@@ -142,10 +167,16 @@ def best_windows_for_site(
     ]
 
 
-def build_site_timeline(hours: list[dict[str, Any]], workload: Workload) -> list[dict[str, Any]]:
+def build_site_timeline(
+    hours: list[dict[str, Any]],
+    workload: Workload,
+    *,
+    acclimatized: bool = DEFAULT_ACCLIMATIZED,
+    clothing: ClothingId | str = DEFAULT_CLOTHING,
+) -> list[dict[str, Any]]:
     timeline = []
     for hour in sorted(hours, key=lambda h: h.get("hour_local") or ""):
-        assessment = assess_hour(hour, workload)
+        assessment = assess_hour(hour, workload, acclimatized=acclimatized, clothing=clothing)
         recommendation = recommend_for_hour(assessment)
         timeline.append({**assessment, "recommendation": recommendation})
     return timeline

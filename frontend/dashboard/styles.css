@@ -42,6 +42,22 @@ header p {
   font-size: 0.95rem;
 }
 
+.assumption-banner {
+  margin-top: 0.65rem !important;
+  color: var(--accent) !important;
+  font-size: 0.85rem !important;
+}
+
+.assumption-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 0.75rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+  cursor: pointer;
+}
+
 .layout {
   display: grid;
   grid-template-columns: 1fr 1.2fr;

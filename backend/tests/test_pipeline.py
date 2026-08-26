@@ -247,6 +247,18 @@ class PlannerRiskSplitTests(unittest.TestCase):
         self.assertEqual(site["peak_risk"], "red")
         self.assertEqual(site["current_risk"], "green")
         self.assertEqual(plan["data"]["mode"], "fixture")
+        self.assertFalse(plan["assumption"]["acclimatized"])
+        self.assertIn("unacclimatized", plan["assumption"]["label"].lower())
+
+        selected = build_planner(
+            sites, hours, "heavy", hour_local="2024-07-15T14:00:00-04:00"
+        )
+        self.assertEqual(selected["sites"][0]["now_risk"], "red")
+        self.assertEqual(selected["sites"][0]["peak_risk"], "red")
+
+        acclim = build_planner(sites, hours, "heavy", acclimatized=True)
+        self.assertTrue(acclim["assumption"]["acclimatized"])
+        self.assertIn("tlv is the red line", acclim["assumption"]["label"].lower())
 
 
 if __name__ == "__main__":

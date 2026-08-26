@@ -15,6 +15,8 @@ HARD RULES:
 4. If the JSON lacks the answer, say you cannot tell from today's calculated results.
 5. Keep language practical and short. No medical diagnosis. Screening guidance only — not a certified WBGT instrument.
 6. If facts.data.mode is fixture, say the numbers are from the backup demo day — not a live FortyGuard pull. If mixed, say so.
+7. Repeat the planning assumption (unacclimatized vs acclimatized) if it is in the facts. Do not hide it.
+8. now_risk is the current or selected hour; peak_risk is the worst hour today. Do not call peak_risk "current."
 """
 
 
@@ -39,14 +41,29 @@ def render_brief_template(planner: dict[str, Any]) -> str:
     elif mode == "live":
         lines.append("Data: live FortyGuard pull.")
         lines.append("")
+
+    assumption = planner.get("assumption") or {}
+    if assumption.get("label"):
+        lines.append(assumption["label"])
+        clothing_label = assumption.get("clothing_label")
+        caf = assumption.get("clothing_adjustment_c")
+        if clothing_label is not None:
+            lines.append(f"Clothing: {clothing_label} (WBGT +{caf}°C).")
+        lines.append("Screening air temperature: site hotspot (p90 / max), mean kept for comparison.")
+        lines.append("")
+
     if comparison.get("answer"):
         lines.append(f"Site ranking: {comparison['answer']}")
         lines.append("")
 
-    lines.append("Site status:")
+    lines.append("Site status (now → peak):")
     for site in sites:
         n = len(site.get("hours") or [])
-        lines.append(f"- {site.get('name') or site['id']}: {site.get('current_risk')} ({n} hours)")
+        now = site.get("now_risk") or site.get("current_risk")
+        peak = site.get("peak_risk")
+        lines.append(
+            f"- {site.get('name') or site['id']}: now {now}, peak {peak} ({n} hours)"
+        )
     lines.append("")
 
     if actions:
@@ -58,8 +75,9 @@ def render_brief_template(planner: dict[str, Any]) -> str:
 
     lines.append("")
     lines.append(
-        "Note: Colors use a screening WBGT estimate from FortyGuard wet-bulb + air temperature "
-        "against OSHA/NIOSH published limits. Not an on-site WBGT meter reading."
+        "Note: Colors use a screening WBGT estimate from FortyGuard wet-bulb + hotspot air temperature "
+        "against OSHA/NIOSH published limits, plus ACGIH work/rest allocations. "
+        "Not an on-site WBGT meter reading."
     )
     return "\n".join(lines)
 

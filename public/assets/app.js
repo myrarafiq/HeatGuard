@@ -2,10 +2,20 @@ const API = ""; // same origin when served by FastAPI
 
 let state = {
   workload: "heavy",
+  acclimatized: false,
   planner: null,
   selectedSiteId: "brickell",
   selectedHourLocal: null,
 };
+
+function plannerQuery() {
+  const params = new URLSearchParams({
+    workload: state.workload,
+    acclimatized: String(state.acclimatized),
+  });
+  if (state.selectedHourLocal) params.set("hour_local", state.selectedHourLocal);
+  return params.toString();
+}
 
 const fmt = (v, suffix = "") =>
   v === null || v === undefined ? "—" : `${Number(v).toFixed(1)}${suffix}`;
@@ -64,9 +74,10 @@ function renderSiteGrid() {
     card.type = "button";
     card.className = `site-card${site.id === state.selectedSiteId ? " selected" : ""}`;
     card.innerHTML = `
-      <div class="name"><span class="risk-dot ${riskClass(site.current_risk)}"></span>${site.name}</div>
+      <div class="name"><span class="risk-dot ${riskClass(site.now_risk || site.current_risk)}"></span>${site.name}</div>
       <div class="meta">${site.city}</div>
-      <div class="temp">${fmt(hour?.temp_c_mean, "°C")}</div>
+      <div class="temp">${fmt(hour?.screening_air_temp_c ?? hour?.temp_c_mean, "°C")}</div>
+      <div class="meta">Now ${site.now_risk || site.current_risk || "—"} · Peak ${site.peak_risk || "—"}</div>
     `;
     card.onclick = () => {
       state.selectedSiteId = site.id;
@@ -85,16 +96,19 @@ function renderDetail() {
 
   document.getElementById("site-title").textContent = site.name.toUpperCase();
   document.getElementById("site-surface").textContent = site.surface || "";
-  document.getElementById("temp-hero").innerHTML = `${fmt(hour?.temp_c_mean)} <span>°C mean</span>`;
+  document.getElementById("temp-hero").innerHTML = `${fmt(hour?.screening_air_temp_c ?? hour?.temp_c_mean)} <span>°C hotspot</span>`;
   document.getElementById("stat-min").textContent = fmt(hour?.temp_c_min, "°");
   document.getElementById("stat-mean").textContent = fmt(hour?.temp_c_mean, "°");
   document.getElementById("stat-max").textContent = fmt(hour?.temp_c_max, "°");
 
   const riskEl = document.getElementById("risk-detail");
+  const wr = hour?.work_rest || hour?.recommendation?.work_rest || {};
+  const wrLabel = wr.code ? `Work/rest ${wr.code}` : "Work/rest —";
   riskEl.innerHTML = `
     <div class="level"><span class="risk-dot ${riskClass(hour?.level)}"></span>${riskLabel(hour?.level)}</div>
     <p style="margin:0.5rem 0 0;font-size:0.85rem;color:var(--muted)">${hour?.reason || "No risk reason available."}</p>
-    <p style="margin:0.35rem 0 0;font-size:0.8rem;color:var(--muted)">Screening WBGT: ${fmt(hour?.screening_wbgt_c, "°C")} · Wet bulb: ${fmt(hour?.wet_bulb_temperature_celsius, "°C")}</p>
+    <p style="margin:0.35rem 0 0;font-size:0.8rem;color:var(--muted)">${wrLabel}${wr.allocation ? ` · ${wr.allocation}` : ""}</p>
+    <p style="margin:0.35rem 0 0;font-size:0.8rem;color:var(--muted)">Effective WBGT: ${fmt(hour?.effective_wbgt_c ?? hour?.screening_wbgt_c, "°C")} · Hotspot Ta: ${fmt(hour?.screening_air_temp_c, "°C")} (${hour?.screening_air_temp_source || "—"}) · Mean: ${fmt(hour?.temp_c_mean, "°C")} · Wet bulb: ${fmt(hour?.wet_bulb_temperature_celsius, "°C")}</p>
   `;
 
   const action = hour?.recommendation?.primary_action || "No recommendation for this hour.";
@@ -149,9 +163,17 @@ function renderWorkloadButtons() {
   });
 }
 
+function renderAssumption() {
+  const el = document.getElementById("assumption-banner");
+  const label = state.planner?.assumption?.label;
+  if (el) el.textContent = label || "Planning assumption: unacclimatized / new hires present.";
+  const toggle = document.getElementById("acclimatized-toggle");
+  if (toggle) toggle.checked = state.acclimatized;
+}
+
 async function loadBrief() {
   try {
-    const data = await fetchJson(`/planner/brief?workload=${state.workload}`);
+    const data = await fetchJson(`/planner/brief?${plannerQuery()}`);
     document.getElementById("brief-text").textContent = data.brief || "";
   } catch {
     document.getElementById("brief-text").textContent = "Brief unavailable.";
@@ -162,15 +184,16 @@ async function loadPlanner() {
   document.body.classList.add("loading");
   setStatus("Loading planner data…");
   try {
-    state.planner = await fetchJson(`/planner?workload=${state.workload}`);
+    state.planner = await fetchJson(`/planner?${plannerQuery()}`);
     if (!state.planner.sites?.some((s) => s.id === state.selectedSiteId)) {
       state.selectedSiteId = state.planner.sites?.[0]?.id || "brickell";
     }
     renderAll();
     await loadBrief();
     const dataMode = (state.planner.data?.mode || "unknown").toUpperCase();
+    const crew = state.acclimatized ? "acclimatized" : "unacclimatized";
     setStatus(
-      `Loaded ${state.planner.sites?.length || 0} sites · ${dataMode} data · workload: ${state.workload} · ` +
+      `Loaded ${state.planner.sites?.length || 0} sites · ${dataMode} data · ${crew} · ${state.workload} · ` +
         (state.planner.comparison_at_10am?.answer || state.planner.comparison?.answer || "ready")
     );
   } catch (err) {
@@ -181,6 +204,7 @@ async function loadPlanner() {
 }
 
 function renderAll() {
+  renderAssumption();
   renderSiteGrid();
   renderDetail();
   renderActions();
@@ -197,7 +221,12 @@ async function askQuestion() {
     const data = await fetchJson("/planner/ask", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question: q, workload: state.workload }),
+      body: JSON.stringify({
+        question: q,
+        workload: state.workload,
+        acclimatized: state.acclimatized,
+        hour_local: state.selectedHourLocal,
+      }),
     });
     answerEl.hidden = false;
     answerEl.textContent = data.answer || "No answer returned.";
@@ -218,6 +247,10 @@ document.getElementById("reload-btn").addEventListener("click", loadPlanner);
 document.getElementById("ask-btn").addEventListener("click", askQuestion);
 document.getElementById("ask-input").addEventListener("keydown", (e) => {
   if (e.key === "Enter") askQuestion();
+});
+document.getElementById("acclimatized-toggle")?.addEventListener("change", (e) => {
+  state.acclimatized = Boolean(e.target.checked);
+  loadPlanner();
 });
 
 loadPlanner();

@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>HeatGuard — Heat Safety Planner</title>
     <link rel="stylesheet" href="/assets/styles.css" />
+    <!-- Vercel Web Analytics -->
     <script>
       window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
     </script>
@@ -14,6 +15,7 @@
     <header>
       <h1>HEAT SAFETY PLANNER</h1>
       <p>Miami Construction Operations · FortyGuard Hackathon '26</p>
+      <p id="assumption-banner" class="assumption-banner">Planning assumption: unacclimatized / new hires present.</p>
     </header>
     <div id="status" class="status-bar">Starting…</div>
 
@@ -63,6 +65,10 @@
             <button type="button" class="workload-btn" data-workload="moderate">Moderate</button>
             <button type="button" class="workload-btn active" data-workload="heavy">Heavy</button>
           </div>
+          <label class="assumption-toggle">
+            <input id="acclimatized-toggle" type="checkbox" />
+            Acclimatized crew (TLV is the red line)
+          </label>
 
           <h2 style="margin-top: 1rem">Risk</h2>
           <div id="risk-detail" class="risk-box">Loading…</div>

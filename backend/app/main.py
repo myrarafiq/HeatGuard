@@ -14,7 +14,14 @@ from .db import connect, list_hours, summarize_data_mode
 from .fixtures import load_fixtures_into_db
 from .safety.ai import maybe_llm_explain, render_brief_template
 from .safety.planner import build_planner
-from .safety.thresholds import WORKLOAD_DEFINITIONS
+from .safety.thresholds import (
+    CLOTHING_ADJUSTMENT_C,
+    DEFAULT_ACCLIMATIZED,
+    DEFAULT_CLOTHING,
+    WORKLOAD_DEFINITIONS,
+    ClothingId,
+    planning_assumption,
+)
 from .sites import get_site, load_sites
 
 WorkloadParam = Literal["light", "moderate", "heavy", "very_heavy"]
@@ -40,6 +47,9 @@ app.add_middleware(
 class AskBody(BaseModel):
     question: str = Field(..., min_length=1)
     workload: WorkloadParam = "heavy"
+    acclimatized: bool = DEFAULT_ACCLIMATIZED
+    clothing: ClothingId = DEFAULT_CLOTHING
+    hour_local: str | None = None
 
 
 @app.get("/health")
@@ -64,7 +74,14 @@ def site_detail(site_id: str) -> dict:
 
 @app.get("/workloads")
 def workloads() -> dict:
-    return {"workloads": WORKLOAD_DEFINITIONS}
+    return {
+        "workloads": WORKLOAD_DEFINITIONS,
+        "clothing": CLOTHING_ADJUSTMENT_C,
+        "default_assumption": planning_assumption(
+            acclimatized=DEFAULT_ACCLIMATIZED,
+            clothing=DEFAULT_CLOTHING,
+        ),
+    }
 
 
 @app.get("/hours")
@@ -81,7 +98,12 @@ def demo_load_fixtures() -> dict:
 
 
 @app.get("/planner")
-def planner(workload: WorkloadParam = Query(default="heavy")) -> dict:
+def planner(
+    workload: WorkloadParam = Query(default="heavy"),
+    acclimatized: bool = Query(default=DEFAULT_ACCLIMATIZED),
+    clothing: ClothingId = Query(default=DEFAULT_CLOTHING),
+    hour_local: str | None = Query(default=None),
+) -> dict:
     site_rows = [site.to_public_dict() for site in load_sites()]
     with connect() as conn:
         hour_rows = list_hours(conn)
@@ -89,21 +111,35 @@ def planner(workload: WorkloadParam = Query(default="heavy")) -> dict:
         load_fixtures_into_db()
         with connect() as conn:
             hour_rows = list_hours(conn)
-    return build_planner(site_rows, hour_rows, workload)
+    return build_planner(
+        site_rows,
+        hour_rows,
+        workload,
+        acclimatized=acclimatized,
+        clothing=clothing,
+        hour_local=hour_local,
+    )
 
 
 @app.get("/planner/snapshot")
-def planner_snapshot(workload: WorkloadParam = Query(default="heavy")) -> dict:
+def planner_snapshot(
+    workload: WorkloadParam = Query(default="heavy"),
+    acclimatized: bool = Query(default=DEFAULT_ACCLIMATIZED),
+    clothing: ClothingId = Query(default=DEFAULT_CLOTHING),
+    hour_local: str | None = Query(default=None),
+) -> dict:
     """Alias for /planner (used by dashboard docs)."""
-    return planner(workload)
+    return planner(workload, acclimatized, clothing, hour_local)
 
 
 @app.get("/planner/compare")
 def planner_compare(
     workload: WorkloadParam = Query(default="heavy"),
+    acclimatized: bool = Query(default=DEFAULT_ACCLIMATIZED),
+    clothing: ClothingId = Query(default=DEFAULT_CLOTHING),
     hour_local: str | None = None,
 ) -> dict:
-    data = planner(workload)
+    data = planner(workload, acclimatized, clothing, hour_local)
     if hour_local:
         from .safety.recommend import compare_sites_at_hour
 
@@ -113,14 +149,19 @@ def planner_compare(
 
 
 @app.get("/planner/brief")
-def planner_brief(workload: WorkloadParam = Query(default="heavy")) -> dict:
-    data = planner(workload)
-    return {"brief": render_brief_template(data), "workload": workload}
+def planner_brief(
+    workload: WorkloadParam = Query(default="heavy"),
+    acclimatized: bool = Query(default=DEFAULT_ACCLIMATIZED),
+    clothing: ClothingId = Query(default=DEFAULT_CLOTHING),
+    hour_local: str | None = Query(default=None),
+) -> dict:
+    data = planner(workload, acclimatized, clothing, hour_local)
+    return {"brief": render_brief_template(data), "workload": workload, "assumption": data.get("assumption")}
 
 
 @app.post("/planner/ask")
 def planner_ask(body: AskBody) -> dict:
-    data = planner(body.workload)
+    data = planner(body.workload, body.acclimatized, body.clothing, body.hour_local)
     result = maybe_llm_explain(body.question, data)
     return {"question": body.question, "workload": body.workload, **result}
 
