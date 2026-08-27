@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+"""Supervisor brief and Q&A over already-calculated planner JSON.
+
+The model may only restate facts in the payload. Deterministic answers still
+work if OPENAI_API_KEY is unset.
+"""
+
 import json
 import os
 import re

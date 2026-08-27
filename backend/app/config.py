@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+"""Environment and FortyGuard settings. Missing API key is allowed: the demo uses backup data."""
+
 import os
 from pathlib import Path
 

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+"""Miami-metro construction sites and their FortyGuard polygons."""
+
 import json
 from dataclasses import dataclass
 from pathlib import Path

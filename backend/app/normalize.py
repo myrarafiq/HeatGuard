@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+"""Turn FortyGuard heatmap and env_params payloads into one hour row per site.
+
+If heatmap temperature is missing, the hour is stored as unknown. We never fill
+gaps with a made-up temperature.
+"""
+
 from typing import Any
 
 from .time_windows import hour_bucket, timestamp_hour_keys

@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+"""FortyGuard Temperature API client.
+
+Submits heatmap and env_params jobs, then polls GET /status/{activity_id}
+until the job completes. A 404 right after submit is a known API quirk and
+is treated as "still running," not a missing job.
+"""
+
 import time
 from typing import Any
 

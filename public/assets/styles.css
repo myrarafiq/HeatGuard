@@ -340,6 +340,21 @@ body {
   color: var(--accent);
 }
 
+.live-btn {
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
+  padding: 0.4rem 0.8rem;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 0.82rem;
+}
+
+.live-btn:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
 .tiny-toggle {
   display: flex;
   align-items: center;

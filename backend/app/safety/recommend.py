@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+"""Shift-plan text from already-assessed hours.
+
+Recommendations cite screening WBGT, OSHA Table 2, and ACGIH work/rest codes.
+They never invent temperatures.
+"""
+
 from datetime import datetime
 from typing import Any
 

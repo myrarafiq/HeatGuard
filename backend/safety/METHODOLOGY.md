@@ -1,4 +1,4 @@
-# Safety methodology (Person 2)
+# Safety methodology
 
 ## Sources (do not invent thresholds)
 
@@ -208,7 +208,7 @@ On the backup demo day (heavy, unacclimatized, work clothing), **10:00** is the 
 
 `apparent_temperature_celsius` / `heat_index_celsius` are shown as **feels like**. They **never** drive Green/Amber/Red. OSHA screening uses the WBGT estimate.
 
-## AI rule (Day 8)
+## AI brief and Q&A
 
 The AI brief / Q&A receives **only** the already-calculated planner JSON.  
 Prompts forbid inventing temperatures, WBGT, risk colors, thresholds, or work/rest ratios.  

@@ -1,5 +1,13 @@
 from __future__ import annotations
 
+"""Published OSHA / NIOSH / ACGIH numbers used by HeatGuard.
+
+AL = Action Limit (unacclimatized / new hires).
+TLV = Threshold Limit Value (acclimatized).
+CAF = clothing adjustment factor, added to screening WBGT before Table 2.
+Do not invent or tune these values.
+"""
+
 from dataclasses import dataclass
 from typing import Any, Literal
 

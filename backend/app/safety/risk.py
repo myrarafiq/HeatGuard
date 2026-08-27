@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+"""OSHA/NIOSH screening risk for one site-hour.
+
+Green / amber / red uses published Action Limit and TLV values. The WBGT
+input is a screening estimate (0.7*Tw + 0.3*Ta hotspot) because FortyGuard
+does not provide globe temperature or wind.
+"""
+
 from typing import Any
 
 from .thresholds import (

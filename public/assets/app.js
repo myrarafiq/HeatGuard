@@ -1,3 +1,4 @@
+/** HeatGuard dashboard. Displays planner JSON only — does not calculate OSHA risk. */
 const API = "";
 
 let state = {
@@ -89,7 +90,19 @@ function riskTitle(level) {
 
 async function fetchJson(path, options) {
   const res = await fetch(`${API}${path}`, options);
-  if (!res.ok) throw new Error(`${path} → ${res.status}`);
+  if (!res.ok) {
+    let extra = "";
+    try {
+      const body = await res.json();
+      const detail = body.detail;
+      extra = detail
+        ? ` — ${typeof detail === "string" ? detail : JSON.stringify(detail)}`
+        : "";
+    } catch (_) {
+      extra = res.statusText ? ` ${res.statusText}` : "";
+    }
+    throw new Error(`${path} → ${res.status}${extra}`);
+  }
   return res.json();
 }
 
@@ -425,6 +438,39 @@ document.getElementById("extra-ppe-toggle")?.addEventListener("change", (e) => {
 });
 
 loadPlanner();
+setupLiveRefresh();
 window.addEventListener("resize", () => {
   if (leafletMap) setTimeout(() => leafletMap.invalidateSize(), 80);
 });
+
+async function setupLiveRefresh() {
+  const btn = document.getElementById("refresh-live");
+  const modeEl = document.getElementById("data-mode");
+  try {
+    const health = await fetchJson("/health");
+    if (health.hosted_demo && modeEl) {
+      modeEl.title =
+        "Hosted demo uses a backup 12-hour Miami day so judging is reliable. FortyGuard heatmap jobs take longer than serverless allows. Run locally with FORTYGUARD_API_KEY to load today.";
+    }
+    if (!btn || !health.live_refresh_available) return;
+    btn.hidden = false;
+    btn.addEventListener("click", refreshLive);
+  } catch (_) {
+    /* health is optional; planner still loads */
+  }
+}
+
+async function refreshLive() {
+  const btn = document.getElementById("refresh-live");
+  if (btn) btn.disabled = true;
+  setStatus("Pulling today's FortyGuard forecast. This can take a few minutes and uses API credits.");
+  try {
+    const data = await fetchJson("/demo/refresh-live", { method: "POST" });
+    setStatus(`Loaded ${data.loaded || 0} live hours.`);
+    await loadPlanner();
+  } catch (err) {
+    setStatus(`Could not load today: ${err.message}`, true);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}

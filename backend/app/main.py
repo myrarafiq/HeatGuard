@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+"""HeatGuard HTTP API.
+
+Serves the manager dashboard and planner JSON. The hosted Vercel demo uses a
+backup 12-hour Miami day because FortyGuard heatmap jobs take longer than
+serverless allows. Locally, POST /demo/refresh-live pulls today's forecast.
+"""
+
 import os
 from typing import Literal
 
@@ -9,12 +16,14 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from .config import ROOT
-from .db import connect, list_hours, summarize_data_mode
+from .config import FORTYGUARD_API_KEY, ROOT
+from .db import clear_hours, connect, list_hours, summarize_data_mode
 from .fixtures import build_demo_day, load_fixtures_into_db
 from .fortyguard_client import FortyGuardClient
+from .pipeline import fetch_sites_parallel
 from .safety.ai import maybe_llm_explain, render_brief_template
 from .safety.planner import build_planner
+from .time_windows import florida_now
 from .safety.thresholds import (
     CLOTHING_ADJUSTMENT_C,
     DEFAULT_ACCLIMATIZED,
@@ -97,6 +106,9 @@ def health() -> dict:
         "service": "heatguard",
         "data_mode": summary.get("mode"),
         "last_successful_pull": summary.get("last_successful_pull"),
+        "hosted_demo": ON_VERCEL,
+        "has_api_key": bool(FORTYGUARD_API_KEY),
+        "live_refresh_available": bool(FORTYGUARD_API_KEY) and not ON_VERCEL,
         **summary,
         **credits,
         **({"db_error": db_error} if db_error else {}),
@@ -139,6 +151,45 @@ def hours(site_id: str | None = None) -> dict:
     if site_id:
         rows = [row for row in rows if row.get("site_id") == site_id]
     return {"hours": rows}
+
+
+@app.post("/demo/refresh-live")
+def demo_refresh_live() -> dict:
+    """Replace stored hours with a live FortyGuard pull from the current Florida hour.
+
+    Disabled on Vercel: heatmap jobs exceed the serverless time limit, and a
+    failed live pull would break judging. Run this locally with FORTYGUARD_API_KEY.
+    """
+    if ON_VERCEL:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "The hosted demo stays on the backup day. FortyGuard heatmap jobs "
+                "take longer than the serverless time limit. Run locally with "
+                "FORTYGUARD_API_KEY to load today."
+            ),
+        )
+    if not FORTYGUARD_API_KEY:
+        raise HTTPException(
+            status_code=400,
+            detail="Set FORTYGUARD_API_KEY in .env to pull live FortyGuard data.",
+        )
+    start = florida_now()
+    with connect() as conn:
+        clear_hours(conn)
+    by_site = fetch_sites_parallel(
+        load_sites(),
+        start,
+        hours=12,
+        duration_metrics=False,
+    )
+    loaded = sum(len(rows) for rows in by_site.values())
+    return {
+        "loaded": loaded,
+        "data_source": "live",
+        "start": start.isoformat(),
+        "replaced": True,
+    }
 
 
 @app.post("/demo/load-fixtures")

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+"""One Open-Meteo Miami 2 m reading for city-vs-site contrast. Not an OSHA input."""
+
 from datetime import datetime, timedelta
 from typing import Any
 

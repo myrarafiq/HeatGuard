@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+"""Backup 12-hour Miami workday used when a live FortyGuard pull is unavailable.
+
+Peak-hour temperatures come from a real FortyGuard pull. Other hours follow a
+smooth diurnal curve so the dashboard still has a full 06:00–17:00 story.
+The calendar stamp is 26 August 2026 so the hosted demo matches judging.
+"""
+
 import json
 import math
 from datetime import datetime, timedelta
@@ -13,8 +20,7 @@ from backend.app.sites import load_sites
 
 FIXTURES_PATH = ROOT / "backend" / "data" / "fixtures" / "demo_day.json"
 
-# Peak-hour temps from a live FortyGuard pull (originally 2024-07-15 14:00).
-# The demo day is stamped on a current summer workday so the dashboard matches judging.
+# Peak-hour temps from a live FortyGuard pull. Other hours are a diurnal curve.
 LIVE_ANCHORS: dict[str, dict[str, float]] = {
     "brickell": {
         "temp_c_mean": 31.26,
@@ -65,9 +71,8 @@ LIVE_ANCHORS: dict[str, dict[str, float]] = {
 
 
 def _diurnal_offset(hour: int) -> float:
-    """°C offset vs 14:00 peak — cooler morning/evening for demo storytelling."""
-    # Stronger morning cooling so heavy work can be green early, red by afternoon,
-    # while 14:00 stays pinned to live FortyGuard anchors (offset ≈ 0).
+    """°C offset vs 2:00 PM peak. Morning is cooler so heavy work can start green."""
+    # Keep 2:00 PM pinned to the live FortyGuard peak-hour temps (offset ≈ 0).
     return 5.0 * math.cos((hour - 14) / 12 * math.pi) - 5.0
 
 

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+"""SQLite store for hourly site conditions. Live and fixture rows are never mixed on purpose."""
+
 import json
 import sqlite3
 from datetime import datetime, timezone

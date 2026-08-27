@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+"""Pull FortyGuard heatmaps and environmental parameters, then store hourly rows.
+
+Each site gets one TCM (snapshot) heatmap plus env_params. Missing heatmap
+temperature is stored as unknown — we never invent a site temperature.
+"""
+
 import json
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
@@ -184,8 +190,9 @@ def fetch_sites_parallel(
     *,
     max_workers: int | None = None,
     persist: bool = True,
+    duration_metrics: bool | None = None,
 ) -> dict[str, list[dict[str, Any]]]:
-    """Cap concurrent FortyGuard site pulls so demo day does not stampede credits."""
+    """Fetch several sites at once. Caps workers so we do not stampede API credits."""
     workers = max(1, max_workers or FETCH_MAX_WORKERS)
     city = fetch_city_hourly(start, hours)
     out: dict[str, list[dict[str, Any]]] = {}
@@ -199,6 +206,7 @@ def fetch_sites_parallel(
                 hours=hours,
                 persist=persist,
                 city_forecast=city,
+                duration_metrics=duration_metrics,
             )
         return site.id, rows
 

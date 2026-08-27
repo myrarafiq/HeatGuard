@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+"""Assemble the manager planner JSON from stored hours and published OSHA limits.
+
+Does not call FortyGuard. now_risk is the selected/current hour; peak_risk is
+the worst hour in the window. todays_actions is the four-move shift plan.
+"""
+
 from typing import Any
 
 from ..db import summarize_data_mode
