@@ -13,7 +13,8 @@ from backend.app.sites import load_sites
 
 FIXTURES_PATH = ROOT / "backend" / "data" / "fixtures" / "demo_day.json"
 
-# Anchors from live FortyGuard pull 2024-07-15 14:00 (America/New_York).
+# Peak-hour temps from a live FortyGuard pull (originally 2024-07-15 14:00).
+# The demo day is stamped on a current summer workday so the dashboard matches judging.
 LIVE_ANCHORS: dict[str, dict[str, float]] = {
     "brickell": {
         "temp_c_mean": 31.26,
@@ -76,7 +77,7 @@ def build_demo_day(
 ) -> list[dict[str, Any]]:
     tz = ZoneInfo("America/New_York")
     if start is None:
-        start = datetime(2024, 7, 15, 6, 0, tzinfo=tz)
+        start = datetime(2026, 8, 26, 6, 0, tzinfo=tz)
     sites = {s.id: s for s in load_sites()}
     rows: list[dict[str, Any]] = []
     for site_id, anchor in LIVE_ANCHORS.items():
@@ -154,8 +155,8 @@ def write_fixtures(path: Path | None = None) -> Path:
     rows = build_demo_day()
     payload = {
         "description": (
-            "12-hour demo day for Miami sites. Anchors at 14:00 use live FortyGuard values "
-            "from 2024-07-15 for brickell/miami_beach/doral; coconut_grove/little_haiti "
+            "12-hour demo day for Miami sites, stamped 2026-08-26. Peak-hour temps at 14:00 "
+            "use live FortyGuard values for brickell/miami_beach/doral; coconut_grove/little_haiti "
             "interpolated between coastal and inland. Diurnal curve is synthetic for demo resilience. "
             "Doral includes a within-site hotspot (~2°C tile spread). Each hour stores Miami city "
             "temperature (Open-Meteo-shaped) vs site mean, plus exceedance/persistence hours above 30°C."

@@ -33,12 +33,12 @@ Open http://127.0.0.1:8000
 python -m backend.scripts.load_fixtures
 ```
 
-Loads a 12-hour × 5-site day. 14:00 anchors for Brickell / Miami Beach / Doral use **live FortyGuard** values from 2024-07-15; other hours use a diurnal curve for demo resilience. If the DB is empty, `/planner` auto-loads fixtures.
+Loads a 12-hour × 5-site day stamped **2026-08-26**. Peak-hour (14:00 / 2:00 PM) temps for Brickell / Miami Beach / Doral use live FortyGuard values; other hours use a diurnal curve for demo resilience. If the DB is empty, `/planner` auto-loads fixtures.
 
 ## Live FortyGuard pulls (uses credits)
 
 ```bash
-python -m backend.scripts.prove_idea --when 2024-07-15T14:00 --sites brickell,miami_beach,doral
+python -m backend.scripts.prove_idea --when 2026-08-26T14:00 --sites brickell,miami_beach,doral
 python -m backend.scripts.fetch_forecast brickell --hours 12
 python -m backend.scripts.fetch_all_sites --sites all --hours 12
 ```

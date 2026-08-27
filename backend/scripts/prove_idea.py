@@ -16,7 +16,7 @@ from backend.app.time_windows import parse_local_hour
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Day 1–2: pull FortyGuard data for Florida test sites.")
-    parser.add_argument("--when", help="Local Florida datetime, e.g. 2024-07-15T14:00. Default: current hour.")
+    parser.add_argument("--when", help="Local Florida datetime, e.g. 2026-08-26T14:00. Default: current hour.")
     parser.add_argument("--sites", default="brickell,miami_beach,doral", help="Comma-separated site ids.")
     parser.add_argument("--hours", type=int, default=1, help="Number of consecutive hours starting at --when.")
     args = parser.parse_args()

@@ -28,7 +28,7 @@ ex)
 
 Live Day 1–2 result at the same time:
 
-**2024-07-15 14:00 — Miami metro**
+**2026-08-26 2:00 PM — Miami metro**
 
 | Site        | Mean temperature |
 | ----------- | ---------------: |
