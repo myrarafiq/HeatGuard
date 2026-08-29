@@ -8,6 +8,9 @@
 
 **HeatGuard** turns FortyGuard's hyperlocal temperature intelligence into today's operating plan: which sites are safest for outdoor work, when risk peaks, and what a supervisor should do before the heat does.
 
+### Project Demo and Slides Recording:
+**https://youtu.be/J3KHnEv3CZY**
+
 ---
 
 ## Live demo
